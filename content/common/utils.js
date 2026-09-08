@@ -21,13 +21,29 @@ const DEFAULT_SETTINGS = {
   shortcutsEnabled: true
 };
 
+function isExtensionValid() {
+  try {
+    return typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id;
+  } catch (e) {
+    return false;
+  }
+}
+
 function getSettings() {
   return new Promise((resolve) => {
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(DEFAULT_SETTINGS, (items) => {
-        resolve({ ...DEFAULT_SETTINGS, ...items });
-      });
-    } else {
+    try {
+      if (isExtensionValid() && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(DEFAULT_SETTINGS, (items) => {
+          if (chrome.runtime?.lastError) {
+            resolve(DEFAULT_SETTINGS);
+          } else {
+            resolve({ ...DEFAULT_SETTINGS, ...items });
+          }
+        });
+      } else {
+        resolve(DEFAULT_SETTINGS);
+      }
+    } catch (e) {
       resolve(DEFAULT_SETTINGS);
     }
   });
@@ -35,11 +51,15 @@ function getSettings() {
 
 function saveSettings(newSettings) {
   return new Promise((resolve) => {
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set(newSettings, () => {
+    try {
+      if (isExtensionValid() && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set(newSettings, () => {
+          resolve();
+        });
+      } else {
         resolve();
-      });
-    } else {
+      }
+    } catch (e) {
       resolve();
     }
   });
@@ -47,17 +67,26 @@ function saveSettings(newSettings) {
 
 function sendMessageToBackground(message) {
   return new Promise((resolve, reject) => {
-    if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) {
-      reject(new Error("Chrome runtime not available"));
-      return;
-    }
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(response);
+    try {
+      if (!isExtensionValid() || !chrome.runtime?.sendMessage) {
+        reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
+        return;
       }
-    });
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime?.lastError) {
+          const msg = chrome.runtime.lastError.message || "";
+          if (msg.includes("context invalidated") || msg.includes("Receiving end does not exist")) {
+            reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
+          } else {
+            reject(new Error(msg));
+          }
+        } else {
+          resolve(response);
+        }
+      });
+    } catch (err) {
+      reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
+    }
   });
 }
 
@@ -116,6 +145,7 @@ function speakText(text, lang = "en-US") {
 if (typeof window !== "undefined") {
   window.BrancyUtils = {
     DEFAULT_SETTINGS,
+    isExtensionValid,
     getSettings,
     saveSettings,
     sendMessageToBackground,
