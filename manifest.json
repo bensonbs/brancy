@@ -31,6 +31,8 @@
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
+    "https://clients5.google.com/*",
+    "https://translate.google.com/*",
     "https://translate.googleapis.com/*",
     "https://translation.googleapis.com/*",
     "https://openrouter.ai/*",

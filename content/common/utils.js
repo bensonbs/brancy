@@ -69,12 +69,15 @@ function sendMessageToBackground(message) {
   return new Promise((resolve, reject) => {
     try {
       if (!isExtensionValid() || !chrome.runtime?.sendMessage) {
-        reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
-        return;
+        return reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
       }
-      chrome.runtime.sendMessage(message, (response) => {
-        if (chrome.runtime?.lastError) {
-          const msg = chrome.runtime.lastError.message || "";
+
+      let handled = false;
+      const onDone = (response, err) => {
+        if (handled) return;
+        handled = true;
+        if (err) {
+          const msg = err.message || String(err);
           if (msg.includes("context invalidated") || msg.includes("Receiving end does not exist")) {
             reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
           } else {
@@ -83,7 +86,22 @@ function sendMessageToBackground(message) {
         } else {
           resolve(response);
         }
+      };
+
+      const sendRes = chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime?.lastError) {
+          onDone(null, chrome.runtime.lastError);
+        } else {
+          onDone(response, null);
+        }
       });
+
+      // Catch potential promise rejection returned in Chrome MV3
+      if (sendRes && typeof sendRes.catch === "function") {
+        sendRes.catch((err) => {
+          onDone(null, err);
+        });
+      }
     } catch (err) {
       reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
     }

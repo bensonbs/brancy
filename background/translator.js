@@ -8,15 +8,39 @@ import { translateSubtitlesWithOpenRouter, translateWebTextsWithOpenRouter, call
 const memoryCache = new Map();
 
 /**
- * Free Google Translate Web Endpoint (client=gtx)
+ * Free Google Translate Web Endpoint (client=dict-chrome-ex / gtx)
  */
 export async function translateSingleGoogleFree(text, targetLang = "zh-TW") {
   if (!text || !text.trim()) return "";
   
-  // Google target lang mapping
   const gTarget = targetLang === "zh-TW" ? "zh-TW" : targetLang === "zh-CN" ? "zh-CN" : targetLang;
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(gTarget)}&dt=t&q=${encodeURIComponent(text)}`;
 
+  // 1. Try clients5 POST (fast, dedicated Chrome extension endpoint)
+  try {
+    const params = new URLSearchParams({
+      sl: "auto",
+      tl: gTarget,
+      q: text
+    });
+    const res = await fetch("https://clients5.google.com/translate_a/t?client=dict-chrome-ex", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data[0]) {
+        const item = data[0];
+        const trans = Array.isArray(item) ? item[0] : (typeof item === "string" ? item : "");
+        if (trans) return trans;
+      }
+    }
+  } catch (e) {
+    console.warn("[Brancy] clients5 single POST failed, trying gtx endpoint:", e);
+  }
+
+  // 2. Fallback to translate.googleapis.com client=gtx
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(gTarget)}&dt=t&q=${encodeURIComponent(text)}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Google Translate 失敗: HTTP ${res.status}`);
@@ -26,35 +50,70 @@ export async function translateSingleGoogleFree(text, targetLang = "zh-TW") {
   if (!data || !data[0]) return text;
 
   // data[0] is an array of segments: [[ "translated segment", "original segment" ], ...]
-  return data[0].map(item => item[0]).filter(Boolean).join("");
+  return data[0].map(item => (Array.isArray(item) ? item[0] : "")).filter(Boolean).join("");
 }
 
 /**
- * Batch translation with Google Free using concurrent chunking
+ * High-performance batch translation with Google Free
+ * Uses clients5 multi-q POST to translate up to 40 items in ONE single HTTP request!
  */
 export async function translateBatchGoogleFree(texts, targetLang = "zh-TW") {
   if (!texts || texts.length === 0) return [];
   
-  const results = new Array(texts.length);
-  const concurrency = 5;
-  
-  for (let i = 0; i < texts.length; i += concurrency) {
-    const chunk = texts.slice(i, i + concurrency);
-    const chunkPromises = chunk.map(async (txt, idx) => {
-      const realIndex = i + idx;
+  const gTarget = targetLang === "zh-TW" ? "zh-TW" : targetLang === "zh-CN" ? "zh-CN" : targetLang;
+  const CHUNK_SIZE = 40;
+  const results = [];
+
+  for (let i = 0; i < texts.length; i += CHUNK_SIZE) {
+    const chunk = texts.slice(i, i + CHUNK_SIZE);
+
+    // 1. Try batch POST with clients5.google.com
+    let chunkSuccess = false;
+    try {
+      const params = new URLSearchParams();
+      params.append("sl", "auto");
+      params.append("tl", gTarget);
+      for (const t of chunk) {
+        params.append("q", t || "");
+      }
+
+      const res = await fetch("https://clients5.google.com/translate_a/t?client=dict-chrome-ex", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length === chunk.length) {
+          chunk.forEach((txt, idx) => {
+            const item = data[idx];
+            const translated = Array.isArray(item) ? item[0] : (typeof item === "string" ? item : "");
+            results.push(translated || txt);
+          });
+          chunkSuccess = true;
+        }
+      }
+    } catch (err) {
+      console.warn("[Brancy] clients5 batch POST error, falling back:", err);
+    }
+
+    if (chunkSuccess) continue;
+
+    // 2. Fallback: item-by-item with translateSingleGoogleFree
+    for (const txt of chunk) {
       if (!txt || !txt.trim()) {
-        results[realIndex] = txt;
-        return;
+        results.push(txt);
+        continue;
       }
       try {
-        const trans = await translateSingleGoogleFree(txt, targetLang);
-        results[realIndex] = trans || txt;
-      } catch (err) {
-        console.warn("[GoogleFree] Failed for text:", txt, err);
-        results[realIndex] = ""; // Keep empty to signal failure rather than original text
+        const trans = await translateSingleGoogleFree(txt, gTarget);
+        results.push(trans || txt);
+      } catch (singleErr) {
+        console.warn("[Brancy] Single fallback error for text:", txt, singleErr);
+        results.push(txt); // Return original text rather than empty string on failure
       }
-    });
-    await Promise.all(chunkPromises);
+    }
   }
   
   return results;

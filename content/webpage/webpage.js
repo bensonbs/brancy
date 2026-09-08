@@ -61,9 +61,10 @@
       return;
     }
 
-    const BATCH_SIZE = 12;
+    const BATCH_SIZE = 20;
     let translatedCount = 0;
     let sameLangCount = 0;
+    let failedCount = 0;
     let lastErrorMsg = null;
 
     for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
@@ -88,6 +89,7 @@
             if (!trans) {
               if (block) block.remove();
               delete el.dataset.otTranslated;
+              failedCount++;
               return;
             }
 
@@ -107,11 +109,13 @@
           });
         } else {
           lastErrorMsg = res?.error || "翻譯服務無回應";
+          failedCount += batch.length;
           shimmerBlocks.forEach(b => b && b.remove());
           batch.forEach(el => delete el.dataset.otTranslated);
         }
       } catch (err) {
         lastErrorMsg = err.message;
+        failedCount += batch.length;
         console.warn("[Brancy] Batch translation error:", err);
         shimmerBlocks.forEach(b => b && b.remove());
         batch.forEach(el => delete el.dataset.otTranslated);
@@ -130,6 +134,8 @@
 
       if (lastErrorMsg) {
         showToast(`Brancy 翻譯失敗: ${lastErrorMsg}`);
+      } else if (failedCount > 0) {
+        showToast("Brancy: 翻譯服務暫時無回應，請檢查網路連線或金鑰設定！");
       } else if (sameLangCount > 0) {
         showToast("Brancy: 本頁面內容已是目標語言（或無需翻譯），未檢測到外語段落");
       } else {
@@ -147,7 +153,7 @@
   }
 
   function findTranslateCandidates() {
-    const selector = "p, h1, h2, h3, h4, h5, h6, li, blockquote, article p, section p, .article-content p, .post-content p";
+    const selector = "p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt, article p, section p, .article-content p, .post-content p, .entry-content p, .rte p, .article__content p";
     const all = Array.from(document.querySelectorAll(selector));
 
     return all.filter(el => {
@@ -203,8 +209,10 @@
       </div>
     `;
 
-    // Insert as next sibling
-    if (originalEl.nextSibling) {
+    // For list items, append inside <li> to maintain clean list structure and not disrupt <ol> numbering
+    if (originalEl.tagName === "LI") {
+      originalEl.appendChild(block);
+    } else if (originalEl.nextSibling) {
       originalEl.parentNode.insertBefore(block, originalEl.nextSibling);
     } else {
       originalEl.parentNode.appendChild(block);

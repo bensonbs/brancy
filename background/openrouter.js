@@ -9,37 +9,50 @@ export async function callOpenRouter({ apiKey, model, messages, temperature = 0.
     throw new Error("請先在 Brancy 設定頁面填寫 OpenRouter API Key！");
   }
 
-  const res = await fetch(OPENROUTER_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey.trim()}`,
-      "HTTP-Referer": "https://github.com/brancy",
-      "X-Title": "Brancy Extension",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: model || "google/gemini-2.5-flash",
-      temperature,
-      messages
-    })
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 18000);
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    let errorJson = null;
-    try {
-      errorJson = JSON.parse(errorText);
-    } catch (e) {}
-    const msg = errorJson?.error?.message || errorText || `HTTP ${res.status}`;
-    throw new Error(`OpenRouter API 錯誤 (${res.status}): ${msg}`);
-  }
+  try {
+    const res = await fetch(OPENROUTER_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey.trim()}`,
+        "HTTP-Referer": "https://github.com/brancy",
+        "X-Title": "Brancy Extension",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: model || "google/gemini-2.5-flash",
+        temperature,
+        messages
+      }),
+      signal: controller.signal
+    });
 
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("OpenRouter 回應為空");
+    if (!res.ok) {
+      const errorText = await res.text();
+      let errorJson = null;
+      try {
+        errorJson = JSON.parse(errorText);
+      } catch (e) {}
+      const msg = errorJson?.error?.message || errorText || `HTTP ${res.status}`;
+      throw new Error(`OpenRouter API 錯誤 (${res.status}): ${msg}`);
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error("OpenRouter 回應為空");
+    }
+    return content.trim();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("OpenRouter 連線逾時（超過 18 秒未回應）");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return content.trim();
 }
 
 /**
@@ -103,14 +116,17 @@ Rules:
       }
     }
 
+    if (translationMap.size === 0) {
+      throw new Error("OpenRouter 回應未包含有效翻譯項目");
+    }
+
     return cues.map((cue, i) => ({
       ...cue,
       translation: translationMap.get(i) || cue.text
     }));
   } catch (err) {
     console.error("[OpenRouter] Failed to parse subtitle JSON response:", rawOutput, err);
-    // Fallback: line by line fallback or return original
-    return cues.map(c => ({ ...c, translation: c.text }));
+    throw err; // Re-throw to trigger fallback to Google Free
   }
 }
 
@@ -165,5 +181,6 @@ Return pure JSON format: a single array of translated strings: ["trans1", "trans
   if (lines.length === texts.length) {
     return lines;
   }
-  return texts;
+  
+  throw new Error(`OpenRouter 翻譯回傳格式不符 (期望 ${texts.length} 項，收到 ${lines.length} 行)`);
 }
