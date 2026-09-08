@@ -11,6 +11,11 @@
   let isSubtitleVisible = true;
   let lastVideoId = null;
 
+  // Live caption observer variables
+  let liveObserver = null;
+  let lastLiveText = "";
+  let liveTranslateTimer = null;
+
   async function init() {
     settings = await BrancyUtils.getSettings();
     isSubtitleVisible = settings.youtubeSubtitleEnabled;
@@ -18,6 +23,7 @@
     setupVideoObserver();
     setupHotkeys();
     setupNavigationListener();
+    setupLiveCaptionObserver();
 
     // Check if on a watch page right now
     checkAndLoadCaptions();
@@ -25,7 +31,7 @@
 
   function setupNavigationListener() {
     window.addEventListener("yt-navigate-finish", () => {
-      setTimeout(checkAndLoadCaptions, 1000);
+      setTimeout(checkAndLoadCaptions, 800);
     });
 
     window.addEventListener("brancy:cues-ready", (e) => {
@@ -56,9 +62,19 @@
       lastVideoId = videoId;
       cues = [];
       currentCueIndex = -1;
+      lastLiveText = "";
       ensureSubtitleContainer();
       injectPlayerControls();
+      ensureNativeCcEnabled();
+
       BrancyCaptions.fetchCaptionsForCurrentVideo();
+    }
+  }
+
+  function ensureNativeCcEnabled() {
+    const ccBtn = document.querySelector(".ytp-subtitles-button");
+    if (ccBtn && ccBtn.getAttribute("aria-pressed") !== "true") {
+      ccBtn.click();
     }
   }
 
@@ -94,6 +110,78 @@
         window.BrancySidebar.updateActiveTime(time);
       }
     });
+  }
+
+  /**
+   * Live DOM Caption Observer:
+   * Captures on-screen caption segments in real time from .ytp-caption-segment.
+   * Guarantees bilingual subtitles even if network timedtext fetch was blocked!
+   */
+  function setupLiveCaptionObserver() {
+    if (liveObserver) return;
+
+    const observeCaptions = () => {
+      const player = document.getElementById("movie_player") || document.body;
+      liveObserver = new MutationObserver(() => {
+        // If full pre-fetched cues are already loaded and working, prefer them
+        if (cues && cues.length > 0) return;
+
+        const segments = document.querySelectorAll(".ytp-caption-segment");
+        if (!segments || segments.length === 0) {
+          if (subtitleContainer && !cues.length) {
+            subtitleContainer.querySelector(".ot-sub-box")?.classList.remove("visible");
+          }
+          return;
+        }
+
+        const fullText = Array.from(segments)
+          .map(s => s.textContent || "")
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (!fullText || fullText === lastLiveText) return;
+        lastLiveText = fullText;
+
+        clearTimeout(liveTranslateTimer);
+        liveTranslateTimer = setTimeout(async () => {
+          const currentText = fullText;
+          try {
+            const res = await BrancyUtils.sendMessageToBackground({
+              action: "TRANSLATE_TEXTS",
+              texts: [currentText]
+            });
+            const trans = res?.success && res?.data?.[0] ? res.data[0] : "";
+
+            // Display on bilingual overlay
+            if (subtitleContainer && isSubtitleVisible) {
+              const targetLine = subtitleContainer.querySelector(".ot-target-line");
+              const originLine = subtitleContainer.querySelector(".ot-origin-line");
+              const box = subtitleContainer.querySelector(".ot-sub-box");
+              if (targetLine && originLine && box) {
+                targetLine.textContent = trans || currentText;
+                originLine.textContent = currentText;
+                box.classList.add("visible");
+              }
+            }
+
+            // Append to sidebar in real time
+            if (window.BrancySidebar && videoEl) {
+              window.BrancySidebar.appendLiveCue({
+                start: Math.max(0, videoEl.currentTime - 1),
+                end: videoEl.currentTime + 3,
+                text: currentText,
+                translation: trans
+              });
+            }
+          } catch (e) {}
+        }, 80);
+      });
+
+      liveObserver.observe(player, { childList: true, subtree: true, characterData: true });
+    };
+
+    observeCaptions();
   }
 
   function ensureSubtitleContainer() {
@@ -142,7 +230,6 @@
       originLine.style.fontSize = `${settings.youtubeOriginFontSize || 14}px`;
     }
 
-    // Order (target on top vs origin on top)
     if (box) {
       box.classList.toggle("ot-origin-first", settings.youtubePrimaryOrder === "origin_first");
     }
@@ -153,7 +240,6 @@
   function syncSubtitles(currentTime) {
     if (!cues || cues.length === 0) return;
 
-    // Find cue
     const index = cues.findIndex(c => currentTime >= c.start && currentTime <= c.end);
     if (index !== currentCueIndex) {
       currentCueIndex = index;
@@ -198,15 +284,12 @@
       </button>
     `;
 
-    // Insert before the settings or fullscreen button
     rightControls.insertBefore(controlsWrapper, rightControls.firstChild);
 
-    // Subtitle toggle
     controlsWrapper.querySelector("#ot-ytp-sub-toggle").addEventListener("click", () => {
       toggleSubtitles();
     });
 
-    // Sidebar toggle
     controlsWrapper.querySelector("#ot-ytp-sidebar-toggle").addEventListener("click", () => {
       if (window.BrancySidebar) {
         window.BrancySidebar.toggle();
@@ -223,19 +306,10 @@
     if (btn) btn.classList.toggle("active", isSubtitleVisible);
   }
 
-  /**
-   * Keyboard shortcuts:
-   * A: Previous sentence
-   * S: Repeat current sentence
-   * D: Next sentence
-   * E: Toggle dual subtitles
-   * R: Toggle sidebar
-   */
   function setupHotkeys() {
     document.addEventListener("keydown", (e) => {
       if (!settings?.shortcutsEnabled) return;
 
-      // Ignore when user is typing in inputs or textareas
       const tag = document.activeElement?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || document.activeElement?.isContentEditable) {
         return;
@@ -279,7 +353,6 @@
     }
   }
 
-  // Initialize
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {

@@ -1,5 +1,5 @@
 /**
- * Brancy Interactive Transcript Sidebar (Trancy-style Reading & Practice Mode)
+ * Brancy Interactive Transcript Sidebar (Reading & Practice Mode)
  */
 
 class YouTubeSidebar {
@@ -137,7 +137,7 @@ class YouTubeSidebar {
         <div class="ot-sidebar-shimmer-wrap">
           <div class="ot-sidebar-shimmer-header">
             <span class="ot-shimmer-sparkle">✨</span>
-            <span class="ot-shimmer-badge-text">AI 雙語字幕即時翻譯中...</span>
+            <span class="ot-shimmer-badge-text">AI 雙語字幕即時生成中...</span>
           </div>
           ${Array(6).fill(0).map(() => `
             <div class="ot-cue-item ot-shimmer-cue-row">
@@ -152,9 +152,27 @@ class YouTubeSidebar {
       `;
     });
 
+    window.addEventListener("brancy:enable-dom-observer", () => {
+      const list = this.container.querySelector("#ot-sidebar-cue-list");
+      if (this.cues.length === 0) {
+        list.innerHTML = `
+          <div class="ot-sidebar-live-banner">
+            <span class="ot-shimmer-sparkle">🎙️</span>
+            <span>已開啟即時雙語字幕模式（播放時自動對照）</span>
+          </div>
+        `;
+      }
+    });
+
     window.addEventListener("brancy:no-captions", () => {
       const list = this.container.querySelector("#ot-sidebar-cue-list");
-      list.innerHTML = `<div class="ot-sidebar-empty">此影片未提供字幕軌跡</div>`;
+      list.innerHTML = `
+        <div class="ot-sidebar-empty">
+          <div style="font-size: 24px; margin-bottom: 8px;">🎬</div>
+          <div style="color: #cbd5e1; font-weight: 600; margin-bottom: 4px;">此影片未檢測到字幕軌跡</div>
+          <div style="font-size: 11px; color: #64748b;">請確認播放器右下角是否有 YouTube 官方提供的 CC 字幕可開啟</div>
+        </div>
+      `;
     });
 
     // Word click listener on transcript words
@@ -172,6 +190,25 @@ class YouTubeSidebar {
         this.tooltipEl.classList.add("hidden");
       }
     });
+  }
+
+  appendLiveCue(newCue) {
+    if (!newCue || !newCue.text) return;
+    const last = this.cues[this.cues.length - 1];
+    if (last && (last.text === newCue.text || newCue.text.includes(last.text))) {
+      // Update existing if expanding
+      last.text = newCue.text;
+      last.translation = newCue.translation || last.translation;
+      last.end = newCue.end;
+      this.renderCues();
+      return;
+    }
+
+    newCue.id = this.cues.length;
+    this.cues.push(newCue);
+    this.container.querySelector("#ot-cue-count").textContent = `${this.cues.length} 句`;
+    this.renderCues();
+    this.highlightCue(this.cues.length - 1);
   }
 
   async showWordPopup(word, targetEl) {
@@ -273,13 +310,11 @@ class YouTubeSidebar {
       const cue = this.cues.find(c => c.id === id);
       if (!cue) return;
 
-      // Click to seek video
       itemEl.addEventListener("click", (e) => {
         if (e.target.closest(".ot-cue-actions") || e.target.closest(".ot-word")) return;
         this.seekVideo(cue.start);
       });
 
-      // Actions
       itemEl.querySelector('[data-action="loop"]')?.addEventListener("click", (e) => {
         e.stopPropagation();
         if (this.loopCue && this.loopCue.id === cue.id) {
@@ -325,7 +360,6 @@ class YouTubeSidebar {
   }
 
   updateActiveTime(currentTime) {
-    // Check loop condition
     if (this.loopCue) {
       if (currentTime >= this.loopCue.end || currentTime < this.loopCue.start) {
         this.seekVideo(this.loopCue.start);
@@ -335,7 +369,6 @@ class YouTubeSidebar {
 
     if (!this.cues || this.cues.length === 0) return;
 
-    // Find active cue
     const activeIndex = this.cues.findIndex(c => currentTime >= c.start && currentTime <= c.end);
     if (activeIndex !== this.currentCueIndex) {
       this.currentCueIndex = activeIndex;
@@ -365,7 +398,6 @@ class YouTubeSidebar {
     if (this.container) {
       this.container.classList.toggle("collapsed", !this.isOpen);
     }
-    // Adjust youtube player container width if needed
     window.dispatchEvent(new CustomEvent("brancy:sidebar-toggled", { detail: { isOpen: this.isOpen } }));
   }
 
@@ -391,7 +423,6 @@ class YouTubeSidebar {
         return `${i + 1}\n${start} --> ${end}\n${c.text}\n${c.translation || ""}\n`;
       }).join("\n");
     } else {
-      // txt
       filename += ".txt";
       content = this.cues.map(c => `[${BrancyUtils.formatTime(c.start)}] ${c.text}\n${c.translation || ""}\n`).join("\n");
     }

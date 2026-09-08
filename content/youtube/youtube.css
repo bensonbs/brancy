@@ -596,3 +596,23 @@
   gap: 6px;
   padding: 4px 0;
 }
+
+/* Hide native YouTube captions when Brancy dual subtitles are active */
+.ytp-caption-window-bottom {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.ot-sidebar-live-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6ee7b7;
+}

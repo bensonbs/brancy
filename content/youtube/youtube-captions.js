@@ -13,10 +13,12 @@ class YouTubeCaptionManager {
 
   setupListeners() {
     window.addEventListener("message", (event) => {
-      if (event.data && event.data.source === "OPEN_TRANCY_PAGE_BRIDGE") {
-        if (event.data.action === "CAPTION_TRACKS_FOUND") {
-          this.handleTracksFound(event.data.tracks, event.data.videoId);
-        }
+      if (!event.data || event.data.source !== "BRANCY_PAGE_BRIDGE") return;
+
+      if (event.data.action === "CAPTION_TRACKS_FOUND") {
+        this.handleTracksFound(event.data.tracks, event.data.videoId);
+      } else if (event.data.action === "NATIVE_TIMEDTEXT_CAPTURED") {
+        this.handleNativeTimedText(event.data.rawText);
       }
     });
   }
@@ -24,6 +26,31 @@ class YouTubeCaptionManager {
   getVideoId() {
     const params = new URLSearchParams(window.location.search);
     return params.get("v");
+  }
+
+  async handleNativeTimedText(rawText) {
+    if (!rawText || this.cues.length > 0) return;
+
+    let rawCues = [];
+    // Try JSON3
+    if (rawText.trim().startsWith("{")) {
+      try {
+        const data = JSON.parse(rawText);
+        if (data && data.events) {
+          rawCues = this.parseEventsToCues(data.events);
+        }
+      } catch (e) {}
+    }
+
+    // Try XML
+    if (rawCues.length === 0 && rawText.includes("<text")) {
+      rawCues = this.parseXmlToCues(rawText);
+    }
+
+    if (rawCues.length > 0) {
+      console.log("[Brancy] Intercepted native timedtext:", rawCues.length, "cues");
+      await this.processAndTranslateCues(rawCues);
+    }
   }
 
   async fetchCaptionsForCurrentVideo() {
@@ -38,14 +65,14 @@ class YouTubeCaptionManager {
     this.cues = [];
     this.isLoading = true;
 
-    // 1. Request tracks from page bridge
+    // 1. Request tracks & trigger player
     window.postMessage({
-      source: "OPEN_TRANCY_CONTENT_SCRIPT",
+      source: "BRANCY_CONTENT_SCRIPT",
       action: "REQUEST_CAPTION_TRACKS"
     }, "*");
 
-    // 2. Wait up to 1.5s for bridge response
-    let tracks = await this.waitForTracks(1500);
+    // 2. Wait up to 1.2s for bridge response
+    let tracks = await this.waitForTracks(1200);
 
     // 3. Fallback: fetch page HTML if bridge didn't answer
     if (!tracks || tracks.length === 0) {
@@ -63,20 +90,36 @@ class YouTubeCaptionManager {
     const selectedTrack = this.selectBestTrack(tracks);
     console.log("[Brancy] Selected caption track:", selectedTrack);
 
-    // 5. Fetch timedtext
+    // 5. Try fetching timedtext directly
     const rawEvents = await this.fetchTimedText(selectedTrack.baseUrl);
-    if (!rawEvents || rawEvents.length === 0) {
-      this.isLoading = false;
-      return null;
+    let rawCues = [];
+
+    if (rawEvents && rawEvents.length > 0) {
+      rawCues = this.parseEventsToCues(rawEvents);
     }
 
-    // 6. Parse and segment into sentences
-    const rawCues = this.parseEventsToCues(rawEvents);
+    if (rawCues.length > 0) {
+      await this.processAndTranslateCues(rawCues);
+    } else {
+      // Direct fetch was empty (poToken protected)
+      // Request player to activate CC and listen for native network intercept / live DOM
+      console.log("[Brancy] Direct timedtext was empty, activating player CC & Live DOM observer");
+      window.postMessage({
+        source: "BRANCY_CONTENT_SCRIPT",
+        action: "TRIGGER_PLAYER_CAPTIONS"
+      }, "*");
+      window.dispatchEvent(new CustomEvent("brancy:enable-dom-observer", { detail: { videoId } }));
+    }
+
+    return this.cues;
+  }
+
+  async processAndTranslateCues(rawCues) {
+    const videoId = this.getVideoId();
     const segmentedCues = this.mergeSentenceSegments(rawCues);
 
-    // 7. Request translation from background service worker
     window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
-    
+
     try {
       const resp = await BrancyUtils.sendMessageToBackground({
         action: "TRANSLATE_SUBTITLES",
@@ -87,7 +130,6 @@ class YouTubeCaptionManager {
       if (resp && resp.success && resp.data) {
         this.cues = resp.data;
       } else {
-        // Fallback: use untranslated cues
         this.cues = segmentedCues;
       }
     } catch (err) {
@@ -99,8 +141,6 @@ class YouTubeCaptionManager {
     window.dispatchEvent(new CustomEvent("brancy:cues-ready", {
       detail: { cues: this.cues, videoId }
     }));
-
-    return this.cues;
   }
 
   waitForTracks(timeoutMs) {
@@ -111,7 +151,7 @@ class YouTubeCaptionManager {
       }
       const timer = setTimeout(() => resolve(null), timeoutMs);
       const listener = (event) => {
-        if (event.data?.source === "OPEN_TRANCY_PAGE_BRIDGE" && event.data?.action === "CAPTION_TRACKS_FOUND") {
+        if (event.data?.source === "BRANCY_PAGE_BRIDGE" && event.data?.action === "CAPTION_TRACKS_FOUND") {
           clearTimeout(timer);
           window.removeEventListener("message", listener);
           resolve(event.data.tracks);
@@ -167,24 +207,15 @@ class YouTubeCaptionManager {
     try {
       const res = await fetch(url);
       if (res.ok) {
-        const data = await res.json();
-        return data.events || [];
+        const text = await res.text();
+        if (text && text.trim().length > 0) {
+          if (text.trim().startsWith("{")) {
+            const data = JSON.parse(text);
+            return data.events || [];
+          }
+        }
       }
-    } catch (e) {
-      // Content script fetch failed, fallback to background service worker
-    }
-
-    try {
-      const bgRes = await BrancyUtils.sendMessageToBackground({
-        action: "FETCH_TIMEDTEXT",
-        url
-      });
-      if (bgRes && bgRes.success) {
-        return bgRes.events || [];
-      }
-    } catch (err) {
-      console.error("[Brancy] Background timedtext fetch failed:", err);
-    }
+    } catch (e) {}
 
     return [];
   }
@@ -215,6 +246,40 @@ class YouTubeCaptionManager {
     return cues;
   }
 
+  parseXmlToCues(xmlString) {
+    const cues = [];
+    const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+    let match;
+    let id = 0;
+
+    while ((match = regex.exec(xmlString)) !== null) {
+      const start = parseFloat(match[1]);
+      const dur = parseFloat(match[2]);
+      const raw = match[3];
+      const text = raw
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/\n/g, " ")
+        .trim();
+
+      if (text) {
+        cues.push({
+          id: id++,
+          start,
+          end: start + Math.max(0.5, dur),
+          duration: dur,
+          text,
+          translation: ""
+        });
+      }
+    }
+
+    return cues;
+  }
+
   /**
    * Intelligently merges short/fragmented cues into coherent sentences
    */
@@ -236,8 +301,6 @@ class YouTubeCaptionManager {
       const wordsCount = current.text.split(/\s+/).length;
       const hasTerminalPunctuation = sentenceEndRegex.test(current.text);
 
-      // Merge if:
-      // 1. Not ended with punctuation AND silence gap is small (< 1.5s) AND length isn't too long (< 20 words)
       if (!hasTerminalPunctuation && silenceGap < 1.5 && wordsCount < 18) {
         current.text = `${current.text} ${cue.text}`.trim();
         current.end = cue.end;
@@ -252,7 +315,6 @@ class YouTubeCaptionManager {
       merged.push(current);
     }
 
-    // Re-index
     return merged.map((c, i) => ({ ...c, id: i }));
   }
 }
