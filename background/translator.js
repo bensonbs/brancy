@@ -181,8 +181,15 @@ export async function translateSubtitleCues(cues, settings, videoId) {
   const cacheKey = `sub_${videoId}_${targetLang}_${engine}_${engine === "openrouter" ? model : ""}`;
   const cached = await getFromStorage(cacheKey);
   if (cached && Array.isArray(cached) && cached.length === cues.length) {
-    console.log("[Brancy] Subtitles loaded from cache:", cacheKey);
-    return cached;
+    // Validate cache: ensure it actually contains translations and is not just English copied over
+    const hasValidTranslation = cached.some(c => c.translation && c.translation.trim().toLowerCase() !== c.text.trim().toLowerCase());
+    if (hasValidTranslation) {
+      console.log("[Brancy] Subtitles loaded from cache:", cacheKey);
+      return cached;
+    } else {
+      console.warn("[Brancy] Stale untranslated cache detected, discarding:", cacheKey);
+      await removeFromStorage(cacheKey);
+    }
   }
 
   let translatedCues = [];
@@ -243,8 +250,9 @@ export async function translateSubtitleCues(cues, settings, videoId) {
     }));
   }
 
-  // Save to storage cache asynchronously
-  if (videoId && translatedCues.length > 0) {
+  // Save to storage cache asynchronously only if actual translations exist
+  const hasValidTranslation = translatedCues.some(c => c.translation && c.translation.trim().toLowerCase() !== c.text.trim().toLowerCase());
+  if (videoId && translatedCues.length > 0 && hasValidTranslation) {
     saveToStorage(cacheKey, translatedCues).catch(e => console.warn("Cache save failed:", e));
   }
 
@@ -373,5 +381,15 @@ function saveToStorage(key, value) {
       return;
     }
     chrome.storage.local.set({ [key]: value }, () => resolve());
+  });
+}
+
+function removeFromStorage(key) {
+  return new Promise(resolve => {
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      resolve();
+      return;
+    }
+    chrome.storage.local.remove([key], () => resolve());
   });
 }

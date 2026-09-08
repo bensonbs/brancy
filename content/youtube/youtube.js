@@ -159,7 +159,16 @@
               const originLine = subtitleContainer.querySelector(".ot-origin-line");
               const box = subtitleContainer.querySelector(".ot-sub-box");
               if (targetLine && originLine && box) {
-                targetLine.textContent = trans || currentText;
+                const cleanOrig = currentText.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
+                const cleanTrans = (trans || "").replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
+
+                if (cleanTrans && cleanTrans !== cleanOrig) {
+                  targetLine.textContent = trans;
+                  targetLine.style.display = "";
+                } else {
+                  targetLine.textContent = "";
+                  targetLine.style.display = "none";
+                }
                 originLine.textContent = currentText;
                 box.classList.add("visible");
               }
@@ -260,8 +269,21 @@
     }
 
     const cue = cues[currentCueIndex];
-    targetLine.textContent = cue.translation || cue.text;
-    originLine.textContent = cue.text;
+    const trans = cue.translation ? cue.translation.trim() : "";
+    const orig = cue.text ? cue.text.trim() : "";
+
+    const cleanOrig = orig.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
+    const cleanTrans = trans.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
+
+    if (cleanTrans && cleanTrans !== cleanOrig) {
+      targetLine.textContent = trans;
+      targetLine.style.display = "";
+    } else {
+      targetLine.textContent = "";
+      targetLine.style.display = "none";
+    }
+
+    originLine.textContent = orig;
     box.classList.add("visible");
   }
 

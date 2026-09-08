@@ -94,8 +94,10 @@ class YouTubeCaptionManager {
     const rawEvents = await this.fetchTimedText(selectedTrack.baseUrl);
     let rawCues = [];
 
-    if (rawEvents && rawEvents.length > 0) {
+    if (Array.isArray(rawEvents) && rawEvents.length > 0) {
       rawCues = this.parseEventsToCues(rawEvents);
+    } else if (typeof rawEvents === "string" && rawEvents.includes("<text")) {
+      rawCues = this.parseXmlToCues(rawEvents);
     }
 
     if (rawCues.length > 0) {
@@ -210,8 +212,12 @@ class YouTubeCaptionManager {
         const text = await res.text();
         if (text && text.trim().length > 0) {
           if (text.trim().startsWith("{")) {
-            const data = JSON.parse(text);
-            return data.events || [];
+            try {
+              const data = JSON.parse(text);
+              return data.events || [];
+            } catch (e) {}
+          } else if (text.includes("<text")) {
+            return text;
           }
         }
       }
