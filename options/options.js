@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Options Page Controller
+ * Brancy Options Page Controller
  */
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -263,7 +263,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Reset all settings
   resetAllBtn.addEventListener("click", async () => {
-    if (confirm("確定要將所有 OpenTrancy 設定恢復為預設值嗎？")) {
+    if (confirm("確定要將所有 Brancy 設定恢復為預設值嗎？")) {
       await chrome.storage.local.clear();
       const def = await chrome.runtime.sendMessage({ action: "GET_SETTINGS" });
       populateUI(def?.settings || {});

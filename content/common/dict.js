@@ -1,11 +1,11 @@
 /**
- * OpenTrancy Word Tokenizer & Dictionary Lookup Helper
+ * Brancy Word Tokenizer & Dictionary Lookup Helper
  */
 
 // Tokenizes text into interactive word spans and punctuation
 function tokenizeTextToHtml(text) {
   if (!text) return "";
-  const esc = (s) => (window.OpenTrancyUtils ? window.OpenTrancyUtils.escapeHtml(s) : s);
+  const esc = (s) => (window.BrancyUtils ? window.BrancyUtils.escapeHtml(s) : s);
 
   // Split on word boundaries while keeping words and non-words
   const tokens = text.match(/[\w'’-]+|[^\w'’-]+/g) || [text];
@@ -32,7 +32,7 @@ async function lookupWord(word) {
   }
 
   try {
-    const res = await OpenTrancyUtils.sendMessageToBackground({
+    const res = await BrancyUtils.sendMessageToBackground({
       action: "LOOKUP_WORD",
       word: cleanWord
     });
@@ -42,13 +42,13 @@ async function lookupWord(word) {
     }
     return null;
   } catch (err) {
-    console.warn("[OpenTrancy] Word lookup failed:", err);
+    console.warn("[Brancy] Word lookup failed:", err);
     return null;
   }
 }
 
 if (typeof window !== "undefined") {
-  window.OpenTrancyDict = {
+  window.BrancyDict = {
     tokenizeTextToHtml,
     lookupWord
   };

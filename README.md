@@ -1,4 +1,4 @@
-# OpenTrancy - 免費開源 AI 雙語網頁與 YouTube 翻譯擴充功能
+# Brancy - 免費開源 AI 雙語網頁與 YouTube 翻譯擴充功能
 
 > 🎯 **Trancy 完美開源平替方案**：無須每月訂閱付費，完整複製 Trancy 核心功能 —— **YouTube 雙語字幕、互動腳本側邊欄、單句循環練習、沉浸式網頁雙語翻譯與劃詞即時查詞**。支援 **Google 免費翻譯端點（免設定 Key）** 與 **OpenRouter AI（支援 Gemini 2.5 Flash、DeepSeek、Claude、GPT-4o mini 等主流大模型）**。
 
@@ -56,9 +56,9 @@
 4. 點擊左上角的 **「載入未打包項目」（Load unpacked）**。
 5. 選擇資料夾路徑：
    ```
-   /Users/benson/code/open-trancy
+   /Users/benson/code/brancy
    ```
-6. 點擊「選擇資料夾」，完成安裝！您可以在瀏覽器右上角擴充功能清單中看到 **OpenTrancy** 圖示。
+6. 點擊「選擇資料夾」，完成安裝！您可以在瀏覽器右上角擴充功能清單中看到 **Brancy** 圖示。
 
 ---
 
@@ -67,7 +67,7 @@
 若您希望使用大模型（如 Gemini 2.5 Flash 或 DeepSeek）進行更高品質的 AI 翻譯：
 
 1. 前往 [OpenRouter.ai/keys](https://openrouter.ai/keys) 註冊並建立一組 API Key。
-2. 點擊瀏覽器右上角的 OpenTrancy 圖示，點擊右上角設定齒輪 ⚙️（或在圖示上按右鍵選擇「選項」）。
+2. 點擊瀏覽器右上角的 Brancy 圖示，點擊右上角設定齒輪 ⚙️（或在圖示上按右鍵選擇「選項」）。
 3. 在「API 金鑰與模型」分頁：
    - 翻譯引擎切換為：`🤖 OpenRouter AI`
    - 貼上您的 **OpenRouter API Key**。
@@ -95,7 +95,7 @@
 ## 📂 專案檔案架構
 
 ```
-open-trancy/
+brancy/
 ├── manifest.json                  # Chrome Manifest V3 配置檔
 ├── icons/                         # 擴充功能圖示 (16x16, 48x48, 128x128)
 ├── background/

@@ -6,15 +6,15 @@ const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 export async function callOpenRouter({ apiKey, model, messages, temperature = 0.3 }) {
   if (!apiKey) {
-    throw new Error("請先在 OpenTrancy 設定頁面填寫 OpenRouter API Key！");
+    throw new Error("請先在 Brancy 設定頁面填寫 OpenRouter API Key！");
   }
 
   const res = await fetch(OPENROUTER_ENDPOINT, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey.trim()}`,
-      "HTTP-Referer": "https://github.com/open-trancy",
-      "X-Title": "OpenTrancy Extension",
+      "HTTP-Referer": "https://github.com/brancy",
+      "X-Title": "Brancy Extension",
       "Content-Type": "application/json"
     },
     body: JSON.stringify({

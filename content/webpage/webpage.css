@@ -1,7 +1,7 @@
-/* OpenTrancy Webpage Bilingual Translation & Tooltip Styles */
+/* Brancy Webpage Bilingual Translation & Tooltip Styles */
 
 /* Bilingual Paragraph Translation Block */
-.open-trancy-web-trans {
+.brancy-web-trans {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -21,14 +21,14 @@
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
-  .open-trancy-web-trans {
+  .brancy-web-trans {
     background: rgba(99, 102, 241, 0.15);
     color: #c7d2fe;
     border-left-color: #818cf8;
   }
 }
 
-.open-trancy-web-trans:hover {
+.brancy-web-trans:hover {
   background: rgba(99, 102, 241, 0.12);
 }
 
@@ -45,7 +45,7 @@
   transition: opacity 0.15s ease;
 }
 
-.open-trancy-web-trans:hover .ot-web-trans-tools {
+.brancy-web-trans:hover .ot-web-trans-tools {
   opacity: 1;
 }
 
@@ -66,7 +66,7 @@
 }
 
 /* Word Selection & Lookup Popup */
-.open-trancy-selection-popup {
+.brancy-selection-popup {
   position: absolute;
   z-index: 2147483645;
   width: 310px;
@@ -81,7 +81,7 @@
   animation: ot-popup-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.open-trancy-selection-popup.hidden {
+.brancy-selection-popup.hidden {
   display: none !important;
 }
 
@@ -203,7 +203,7 @@
 }
 
 /* Floating Ball */
-.open-trancy-floating-ball {
+.brancy-floating-ball {
   position: fixed;
   right: 24px;
   bottom: 28px;
@@ -284,7 +284,7 @@
 }
 
 /* Toast Message */
-.open-trancy-toast {
+.brancy-toast {
   position: fixed;
   left: 50%;
   bottom: 30px;
@@ -305,7 +305,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.open-trancy-toast.show {
+.brancy-toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }

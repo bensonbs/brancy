@@ -1,7 +1,7 @@
-/* OpenTrancy YouTube Player & Subtitle Styles */
+/* Brancy YouTube Player & Subtitle Styles */
 
 /* In-player bilingual subtitle overlay */
-.open-trancy-subtitles {
+.brancy-subtitles {
   position: absolute;
   left: 0;
   right: 0;
@@ -15,7 +15,7 @@
 }
 
 /* Adjust when player controls are hidden */
-.ytp-autohide .open-trancy-subtitles {
+.ytp-autohide .brancy-subtitles {
   bottom: 36px;
 }
 
@@ -66,7 +66,7 @@
 }
 
 /* YouTube Player Controls Bar Custom Buttons */
-.open-trancy-ytp-controls {
+.brancy-ytp-controls {
   display: inline-flex;
   align-items: center;
   height: 100%;
@@ -109,7 +109,7 @@
 }
 
 /* Trancy-style Transcript Sidebar */
-.open-trancy-sidebar {
+.brancy-sidebar {
   position: fixed;
   right: 0;
   top: 56px;
@@ -127,7 +127,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", sans-serif;
 }
 
-.open-trancy-sidebar.collapsed {
+.brancy-sidebar.collapsed {
   transform: translateX(100%);
   pointer-events: none;
 }

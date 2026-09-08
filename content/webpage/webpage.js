@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Immersive Webpage Bilingual Translation
+ * Brancy Immersive Webpage Bilingual Translation
  */
 
 (function () {
@@ -8,7 +8,7 @@
   let settings = null;
 
   async function init() {
-    settings = await OpenTrancyUtils.getSettings();
+    settings = await BrancyUtils.getSettings();
     setupShortcut();
 
     // Listen for extension popup or background trigger
@@ -43,14 +43,14 @@
   async function translateCurrentPage() {
     if (isTranslating) return;
     isTranslating = true;
-    showToast("OpenTrancy: 正在雙語翻譯網頁內容...");
+    showToast("Brancy: 正在雙語翻譯網頁內容...");
 
-    settings = await OpenTrancyUtils.getSettings();
+    settings = await BrancyUtils.getSettings();
 
     // Collect candidate DOM elements
     const candidates = findTranslateCandidates();
     if (candidates.length === 0) {
-      showToast("OpenTrancy: 未找到適合翻譯的段落");
+      showToast("Brancy: 未找到適合翻譯的段落");
       isTranslating = false;
       return;
     }
@@ -63,7 +63,7 @@
       const texts = batch.map(el => el.innerText.trim());
 
       try {
-        const res = await OpenTrancyUtils.sendMessageToBackground({
+        const res = await BrancyUtils.sendMessageToBackground({
           action: "TRANSLATE_TEXTS",
           texts
         });
@@ -78,21 +78,21 @@
           });
         }
       } catch (err) {
-        console.warn("[OpenTrancy] Batch translation error:", err);
+        console.warn("[Brancy] Batch translation error:", err);
       }
     }
 
     isTranslating = false;
     isPageTranslated = true;
     document.body.classList.add("ot-page-translated");
-    showToast(`OpenTrancy: 完成 ${translatedCount} 段文字雙語翻譯！`);
+    showToast(`Brancy: 完成 ${translatedCount} 段文字雙語翻譯！`);
   }
 
   function restoreOriginalPage() {
-    document.querySelectorAll(".open-trancy-web-trans").forEach(el => el.remove());
+    document.querySelectorAll(".brancy-web-trans").forEach(el => el.remove());
     document.body.classList.remove("ot-page-translated");
     isPageTranslated = false;
-    showToast("OpenTrancy: 已還原原始網頁");
+    showToast("Brancy: 已還原原始網頁");
   }
 
   function findTranslateCandidates() {
@@ -101,7 +101,7 @@
 
     return all.filter(el => {
       // Exclude hidden or non-content elements
-      if (el.closest("header, footer, nav, aside, pre, code, script, style, noscript, .open-trancy-web-trans, #open-trancy-floating-ball, #open-trancy-sidebar")) {
+      if (el.closest("header, footer, nav, aside, pre, code, script, style, noscript, .brancy-web-trans, #brancy-floating-ball, #brancy-sidebar")) {
         return false;
       }
       if (el.dataset.otTranslated) {
@@ -128,9 +128,9 @@
     originalEl.dataset.otTranslated = "true";
 
     const block = document.createElement("div");
-    block.className = "open-trancy-web-trans";
+    block.className = "brancy-web-trans";
     block.innerHTML = `
-      <div class="ot-web-trans-content">${OpenTrancyUtils.escapeHtml(translatedText)}</div>
+      <div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div>
       <div class="ot-web-trans-tools">
         <button class="ot-trans-btn" data-action="speak" title="朗讀翻譯">🔊</button>
         <button class="ot-trans-btn" data-action="copy" title="複製翻譯">📋</button>
@@ -140,7 +140,7 @@
     // Actions
     block.querySelector('[data-action="speak"]')?.addEventListener("click", (e) => {
       e.stopPropagation();
-      OpenTrancyUtils.speakText(translatedText, settings.targetLang === "zh-TW" ? "zh-TW" : "zh-CN");
+      BrancyUtils.speakText(translatedText, settings.targetLang === "zh-TW" ? "zh-TW" : "zh-CN");
     });
 
     block.querySelector('[data-action="copy"]')?.addEventListener("click", (e) => {
@@ -160,11 +160,11 @@
   }
 
   function showToast(msg) {
-    let toast = document.getElementById("open-trancy-toast");
+    let toast = document.getElementById("brancy-toast");
     if (!toast) {
       toast = document.createElement("div");
-      toast.id = "open-trancy-toast";
-      toast.className = "open-trancy-toast";
+      toast.id = "brancy-toast";
+      toast.className = "brancy-toast";
       document.body.appendChild(toast);
     }
     toast.textContent = msg;
@@ -175,7 +175,7 @@
   }
 
   // Expose global controller
-  window.OpenTrancyWebpage = {
+  window.BrancyWebpage = {
     togglePageTranslation,
     translateCurrentPage,
     restoreOriginalPage

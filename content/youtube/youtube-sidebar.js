@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Interactive Transcript Sidebar (Trancy-style Reading & Practice Mode)
+ * Brancy Interactive Transcript Sidebar (Trancy-style Reading & Practice Mode)
  */
 
 class YouTubeSidebar {
@@ -18,24 +18,24 @@ class YouTubeSidebar {
   }
 
   async init() {
-    this.settings = await OpenTrancyUtils.getSettings();
+    this.settings = await BrancyUtils.getSettings();
     this.createSidebarElement();
     this.createWordTooltip();
     this.bindEvents();
   }
 
   createSidebarElement() {
-    if (document.getElementById("open-trancy-sidebar")) return;
+    if (document.getElementById("brancy-sidebar")) return;
 
     const sidebar = document.createElement("div");
-    sidebar.id = "open-trancy-sidebar";
-    sidebar.className = "open-trancy-sidebar collapsed";
+    sidebar.id = "brancy-sidebar";
+    sidebar.className = "brancy-sidebar collapsed";
     sidebar.innerHTML = `
       <div class="ot-sidebar-header">
         <div class="ot-sidebar-title-group">
-          <div class="ot-sidebar-logo">T</div>
+          <div class="ot-sidebar-logo">B</div>
           <div class="ot-sidebar-title">
-            <span class="ot-main-title">OpenTrancy 腳本</span>
+            <span class="ot-main-title">Brancy 腳本</span>
             <span id="ot-cue-count" class="ot-badge">0 句</span>
           </div>
         </div>
@@ -127,16 +127,16 @@ class YouTubeSidebar {
     });
 
     // Subtitle events from captions manager
-    window.addEventListener("open-trancy:cues-ready", (e) => {
+    window.addEventListener("brancy:cues-ready", (e) => {
       this.setCues(e.detail.cues);
     });
 
-    window.addEventListener("open-trancy:translating-start", () => {
+    window.addEventListener("brancy:translating-start", () => {
       const list = this.container.querySelector("#ot-sidebar-cue-list");
       list.innerHTML = `<div class="ot-sidebar-loading"><div class="ot-spinner"></div>AI 雙語字幕翻譯中...</div>`;
     });
 
-    window.addEventListener("open-trancy:no-captions", () => {
+    window.addEventListener("brancy:no-captions", () => {
       const list = this.container.querySelector("#ot-sidebar-cue-list");
       list.innerHTML = `<div class="ot-sidebar-empty">此影片未提供字幕軌跡</div>`;
     });
@@ -166,11 +166,11 @@ class YouTubeSidebar {
     this.tooltipEl.style.top = `${rect.bottom + window.scrollY + 6}px`;
     this.tooltipEl.style.left = `${Math.min(window.innerWidth - 260, Math.max(10, rect.left))}px`;
 
-    const data = await OpenTrancyDict.lookupWord(word);
+    const data = await BrancyDict.lookupWord(word);
     if (!data) {
       this.tooltipEl.innerHTML = `
         <div class="ot-tooltip-header">
-          <span class="ot-tooltip-word">${OpenTrancyUtils.escapeHtml(word)}</span>
+          <span class="ot-tooltip-word">${BrancyUtils.escapeHtml(word)}</span>
         </div>
         <div class="ot-tooltip-trans">無法取得釋義</div>
       `;
@@ -181,24 +181,24 @@ class YouTubeSidebar {
     if (data.meanings && data.meanings.length > 0) {
       meaningsHtml = data.meanings.map(m => `
         <div class="ot-tooltip-def">
-          <span class="ot-pos">${OpenTrancyUtils.escapeHtml(m.partOfSpeech)}</span>
-          <span class="ot-def-text">${OpenTrancyUtils.escapeHtml(m.definition)}</span>
+          <span class="ot-pos">${BrancyUtils.escapeHtml(m.partOfSpeech)}</span>
+          <span class="ot-def-text">${BrancyUtils.escapeHtml(m.definition)}</span>
         </div>
       `).join("");
     }
 
     this.tooltipEl.innerHTML = `
       <div class="ot-tooltip-header">
-        <span class="ot-tooltip-word">${OpenTrancyUtils.escapeHtml(data.word)}</span>
-        ${data.phonetic ? `<span class="ot-tooltip-phonetic">[${OpenTrancyUtils.escapeHtml(data.phonetic)}]</span>` : ""}
+        <span class="ot-tooltip-word">${BrancyUtils.escapeHtml(data.word)}</span>
+        ${data.phonetic ? `<span class="ot-tooltip-phonetic">[${BrancyUtils.escapeHtml(data.phonetic)}]</span>` : ""}
         <button class="ot-tooltip-audio-btn" title="朗讀">🔊</button>
       </div>
-      <div class="ot-tooltip-trans">${OpenTrancyUtils.escapeHtml(data.translation || "")}</div>
+      <div class="ot-tooltip-trans">${BrancyUtils.escapeHtml(data.translation || "")}</div>
       ${meaningsHtml ? `<div class="ot-tooltip-meanings">${meaningsHtml}</div>` : ""}
     `;
 
     this.tooltipEl.querySelector(".ot-tooltip-audio-btn")?.addEventListener("click", () => {
-      OpenTrancyUtils.speakText(data.word);
+      BrancyUtils.speakText(data.word);
     });
   }
 
@@ -223,19 +223,19 @@ class YouTubeSidebar {
     });
 
     if (filtered.length === 0) {
-      list.innerHTML = `<div class="ot-sidebar-empty">沒有找到符合「${OpenTrancyUtils.escapeHtml(this.searchQuery)}」的字幕</div>`;
+      list.innerHTML = `<div class="ot-sidebar-empty">沒有找到符合「${BrancyUtils.escapeHtml(this.searchQuery)}」的字幕</div>`;
       return;
     }
 
     list.innerHTML = filtered.map((cue) => {
       const isLooping = this.loopCue && this.loopCue.id === cue.id;
-      const originalInteractive = OpenTrancyDict.tokenizeTextToHtml(cue.text);
+      const originalInteractive = BrancyDict.tokenizeTextToHtml(cue.text);
       return `
         <div class="ot-cue-item ${isLooping ? "looping" : ""}" data-id="${cue.id}">
-          <div class="ot-cue-time" title="點擊跳轉">${OpenTrancyUtils.formatTime(cue.start)}</div>
+          <div class="ot-cue-time" title="點擊跳轉">${BrancyUtils.formatTime(cue.start)}</div>
           <div class="ot-cue-body">
             <div class="ot-cue-text">${originalInteractive}</div>
-            <div class="ot-cue-trans">${OpenTrancyUtils.escapeHtml(cue.translation || "")}</div>
+            <div class="ot-cue-trans">${BrancyUtils.escapeHtml(cue.translation || "")}</div>
           </div>
           <div class="ot-cue-actions">
             <button class="ot-action-btn ot-btn-loop ${isLooping ? "active" : ""}" data-action="loop" title="單句循環">🔁</button>
@@ -270,7 +270,7 @@ class YouTubeSidebar {
 
       itemEl.querySelector('[data-action="speak"]')?.addEventListener("click", (e) => {
         e.stopPropagation();
-        OpenTrancyUtils.speakText(cue.text);
+        BrancyUtils.speakText(cue.text);
       });
 
       itemEl.querySelector('[data-action="copy"]')?.addEventListener("click", (e) => {
@@ -345,7 +345,7 @@ class YouTubeSidebar {
       this.container.classList.toggle("collapsed", !this.isOpen);
     }
     // Adjust youtube player container width if needed
-    window.dispatchEvent(new CustomEvent("open-trancy:sidebar-toggled", { detail: { isOpen: this.isOpen } }));
+    window.dispatchEvent(new CustomEvent("brancy:sidebar-toggled", { detail: { isOpen: this.isOpen } }));
   }
 
   exportTranscript(type) {
@@ -372,7 +372,7 @@ class YouTubeSidebar {
     } else {
       // txt
       filename += ".txt";
-      content = this.cues.map(c => `[${OpenTrancyUtils.formatTime(c.start)}] ${c.text}\n${c.translation || ""}\n`).join("\n");
+      content = this.cues.map(c => `[${BrancyUtils.formatTime(c.start)}] ${c.text}\n${c.translation || ""}\n`).join("\n");
     }
 
     const blob = new Blob([content], { type: mime });
@@ -400,5 +400,5 @@ class YouTubeSidebar {
 }
 
 if (typeof window !== "undefined") {
-  window.OpenTrancySidebar = new YouTubeSidebar();
+  window.BrancySidebar = new YouTubeSidebar();
 }

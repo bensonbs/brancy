@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Translation Service Dispatcher & Cache
+ * Brancy Translation Service Dispatcher & Cache
  */
 
 import { translateSubtitlesWithOpenRouter, translateWebTextsWithOpenRouter, callOpenRouter } from "./openrouter.js";
@@ -65,7 +65,7 @@ export async function translateBatchGoogleFree(texts, targetLang = "zh-TW") {
  */
 export async function translateGoogleCloudAPI({ apiKey, texts, targetLang = "zh-TW" }) {
   if (!apiKey) {
-    throw new Error("請先在 OpenTrancy 設定頁面填寫 Google Cloud Translation API Key！");
+    throw new Error("請先在 Brancy 設定頁面填寫 Google Cloud Translation API Key！");
   }
   if (!texts || texts.length === 0) return [];
 
@@ -112,7 +112,7 @@ export async function translateSubtitleCues(cues, settings, videoId) {
   const cacheKey = `sub_${videoId}_${targetLang}_${engine}_${engine === "openrouter" ? model : ""}`;
   const cached = await getFromStorage(cacheKey);
   if (cached && Array.isArray(cached) && cached.length === cues.length) {
-    console.log("[OpenTrancy] Subtitles loaded from cache:", cacheKey);
+    console.log("[Brancy] Subtitles loaded from cache:", cacheKey);
     return cached;
   }
 

@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Common Utilities
+ * Brancy Common Utilities
  */
 
 const DEFAULT_SETTINGS = {
@@ -114,7 +114,7 @@ function speakText(text, lang = "en-US") {
 
 // Attach to window for standard content scripts
 if (typeof window !== "undefined") {
-  window.OpenTrancyUtils = {
+  window.BrancyUtils = {
     DEFAULT_SETTINGS,
     getSettings,
     saveSettings,

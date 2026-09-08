@@ -1,5 +1,5 @@
 /**
- * OpenTrancy YouTube Player Integration & Bilingual Subtitle Renderer
+ * Brancy YouTube Player Integration & Bilingual Subtitle Renderer
  */
 
 (function () {
@@ -12,7 +12,7 @@
   let lastVideoId = null;
 
   async function init() {
-    settings = await OpenTrancyUtils.getSettings();
+    settings = await BrancyUtils.getSettings();
     isSubtitleVisible = settings.youtubeSubtitleEnabled;
 
     setupVideoObserver();
@@ -28,7 +28,7 @@
       setTimeout(checkAndLoadCaptions, 1000);
     });
 
-    window.addEventListener("open-trancy:cues-ready", (e) => {
+    window.addEventListener("brancy:cues-ready", (e) => {
       cues = e.detail.cues || [];
       currentCueIndex = -1;
       updateSubtitleDisplay();
@@ -37,7 +37,7 @@
     // Listen for storage changes
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener(async () => {
-        settings = await OpenTrancyUtils.getSettings();
+        settings = await BrancyUtils.getSettings();
         isSubtitleVisible = settings.youtubeSubtitleEnabled;
         applySubtitleStyles();
       });
@@ -58,7 +58,7 @@
       currentCueIndex = -1;
       ensureSubtitleContainer();
       injectPlayerControls();
-      OpenTrancyCaptions.fetchCaptionsForCurrentVideo();
+      BrancyCaptions.fetchCaptionsForCurrentVideo();
     }
   }
 
@@ -72,7 +72,7 @@
     };
 
     findVideo();
-    const observer = new MutationObserver(OpenTrancyUtils.debounce(findVideo, 500));
+    const observer = new MutationObserver(BrancyUtils.debounce(findVideo, 500));
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
@@ -82,16 +82,16 @@
     videoEl.addEventListener("timeupdate", () => {
       const time = videoEl.currentTime;
       syncSubtitles(time);
-      if (window.OpenTrancySidebar) {
-        window.OpenTrancySidebar.updateActiveTime(time);
+      if (window.BrancySidebar) {
+        window.BrancySidebar.updateActiveTime(time);
       }
     });
 
     videoEl.addEventListener("seeking", () => {
       const time = videoEl.currentTime;
       syncSubtitles(time);
-      if (window.OpenTrancySidebar) {
-        window.OpenTrancySidebar.updateActiveTime(time);
+      if (window.BrancySidebar) {
+        window.BrancySidebar.updateActiveTime(time);
       }
     });
   }
@@ -104,8 +104,8 @@
       if (subtitleContainer) subtitleContainer.remove();
 
       subtitleContainer = document.createElement("div");
-      subtitleContainer.id = "open-trancy-subtitles";
-      subtitleContainer.className = "open-trancy-subtitles";
+      subtitleContainer.id = "brancy-subtitles";
+      subtitleContainer.className = "brancy-subtitles";
       subtitleContainer.innerHTML = `
         <div class="ot-sub-box">
           <div class="ot-sub-line ot-target-line"></div>
@@ -180,20 +180,20 @@
   }
 
   /**
-   * Injects OpenTrancy buttons into YouTube's player controls bar
+   * Injects Brancy buttons into YouTube's player controls bar
    */
   function injectPlayerControls() {
     const rightControls = document.querySelector(".ytp-right-controls");
-    if (!rightControls || document.getElementById("open-trancy-ytp-controls")) return;
+    if (!rightControls || document.getElementById("brancy-ytp-controls")) return;
 
     const controlsWrapper = document.createElement("div");
-    controlsWrapper.id = "open-trancy-ytp-controls";
-    controlsWrapper.className = "open-trancy-ytp-controls";
+    controlsWrapper.id = "brancy-ytp-controls";
+    controlsWrapper.className = "brancy-ytp-controls";
     controlsWrapper.innerHTML = `
-      <button class="ytp-button ot-ytp-btn ${isSubtitleVisible ? "active" : ""}" id="ot-ytp-sub-toggle" title="OpenTrancy 雙語字幕 (熱鍵 E)">
+      <button class="ytp-button ot-ytp-btn ${isSubtitleVisible ? "active" : ""}" id="ot-ytp-sub-toggle" title="Brancy 雙語字幕 (熱鍵 E)">
         <span class="ot-ytp-badge">雙</span>
       </button>
-      <button class="ytp-button ot-ytp-btn" id="ot-ytp-sidebar-toggle" title="開啟 OpenTrancy 腳本側邊欄 (熱鍵 R)">
+      <button class="ytp-button ot-ytp-btn" id="ot-ytp-sidebar-toggle" title="開啟 Brancy 腳本側邊欄 (熱鍵 R)">
         <span class="ot-ytp-badge">側</span>
       </button>
     `;
@@ -208,8 +208,8 @@
 
     // Sidebar toggle
     controlsWrapper.querySelector("#ot-ytp-sidebar-toggle").addEventListener("click", () => {
-      if (window.OpenTrancySidebar) {
-        window.OpenTrancySidebar.toggle();
+      if (window.BrancySidebar) {
+        window.BrancySidebar.toggle();
       }
     });
   }
@@ -257,8 +257,8 @@
         toggleSubtitles();
       } else if (key === "R") {
         e.preventDefault();
-        if (window.OpenTrancySidebar) {
-          window.OpenTrancySidebar.toggle();
+        if (window.BrancySidebar) {
+          window.BrancySidebar.toggle();
         }
       }
     });

@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Floating Action Ball on Webpages
+ * Brancy Floating Action Ball on Webpages
  */
 
 (function () {
@@ -9,7 +9,7 @@
   let isMenuOpen = false;
 
   async function init() {
-    settings = await OpenTrancyUtils.getSettings();
+    settings = await BrancyUtils.getSettings();
     if (!settings.webFloatingBallEnabled) return;
 
     createFloatingBall();
@@ -17,17 +17,17 @@
   }
 
   function createFloatingBall() {
-    if (document.getElementById("open-trancy-floating-ball")) return;
+    if (document.getElementById("brancy-floating-ball")) return;
 
     const wrapper = document.createElement("div");
-    wrapper.id = "open-trancy-floating-ball";
-    wrapper.className = "open-trancy-floating-ball";
+    wrapper.id = "brancy-floating-ball";
+    wrapper.className = "brancy-floating-ball";
     wrapper.innerHTML = `
-      <div id="ot-ball-button" class="ot-ball-btn" title="OpenTrancy 網頁翻譯">
-        <span>T</span>
+      <div id="ot-ball-button" class="ot-ball-btn" title="Brancy 網頁翻譯">
+        <span>B</span>
       </div>
       <div id="ot-ball-menu" class="ot-ball-menu hidden">
-        <div class="ot-ball-menu-header">OpenTrancy 雙語翻譯</div>
+        <div class="ot-ball-menu-header">Brancy 雙語翻譯</div>
         <div class="ot-ball-menu-item" id="ot-ball-action-translate">
           <span class="ot-ball-menu-icon">🌐</span>
           <span id="ot-ball-trans-label">雙語翻譯整頁</span>
@@ -93,8 +93,8 @@
     document.getElementById("ot-ball-action-translate")?.addEventListener("click", () => {
       isMenuOpen = false;
       menuEl.classList.add("hidden");
-      if (window.OpenTrancyWebpage) {
-        window.OpenTrancyWebpage.togglePageTranslation();
+      if (window.BrancyWebpage) {
+        window.BrancyWebpage.togglePageTranslation();
       }
       setTimeout(updateMenuLabels, 300);
     });
@@ -103,7 +103,7 @@
     document.getElementById("ot-ball-action-engine")?.addEventListener("click", async () => {
       const nextEngine = settings.engine === "google_free" ? "openrouter" : "google_free";
       settings.engine = nextEngine;
-      await OpenTrancyUtils.saveSettings({ engine: nextEngine });
+      await BrancyUtils.saveSettings({ engine: nextEngine });
       updateMenuLabels();
     });
 
@@ -113,15 +113,15 @@
       const currIdx = langs.indexOf(settings.targetLang);
       const nextLang = langs[(currIdx + 1) % langs.length];
       settings.targetLang = nextLang;
-      await OpenTrancyUtils.saveSettings({ targetLang: nextLang });
+      await BrancyUtils.saveSettings({ targetLang: nextLang });
       updateMenuLabels();
     });
 
     // Hide ball action
     document.getElementById("ot-ball-action-hide")?.addEventListener("click", async () => {
-      const wrapper = document.getElementById("open-trancy-floating-ball");
+      const wrapper = document.getElementById("brancy-floating-ball");
       if (wrapper) wrapper.style.display = "none";
-      await OpenTrancyUtils.saveSettings({ webFloatingBallEnabled: false });
+      await BrancyUtils.saveSettings({ webFloatingBallEnabled: false });
     });
   }
 

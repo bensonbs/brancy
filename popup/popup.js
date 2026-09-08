@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Popup Controller
+ * Brancy Popup Controller
  */
 
 document.addEventListener("DOMContentLoaded", async () => {

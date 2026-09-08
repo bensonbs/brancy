@@ -1,5 +1,5 @@
 /**
- * OpenTrancy YouTube Caption Fetcher & Sentence Segmenter
+ * Brancy YouTube Caption Fetcher & Sentence Segmenter
  */
 
 class YouTubeCaptionManager {
@@ -53,15 +53,15 @@ class YouTubeCaptionManager {
     }
 
     if (!tracks || tracks.length === 0) {
-      console.warn("[OpenTrancy] No caption tracks found for video:", videoId);
+      console.warn("[Brancy] No caption tracks found for video:", videoId);
       this.isLoading = false;
-      window.dispatchEvent(new CustomEvent("open-trancy:no-captions", { detail: { videoId } }));
+      window.dispatchEvent(new CustomEvent("brancy:no-captions", { detail: { videoId } }));
       return null;
     }
 
     // 4. Select best track
     const selectedTrack = this.selectBestTrack(tracks);
-    console.log("[OpenTrancy] Selected caption track:", selectedTrack);
+    console.log("[Brancy] Selected caption track:", selectedTrack);
 
     // 5. Fetch timedtext
     const rawEvents = await this.fetchTimedText(selectedTrack.baseUrl);
@@ -75,10 +75,10 @@ class YouTubeCaptionManager {
     const segmentedCues = this.mergeSentenceSegments(rawCues);
 
     // 7. Request translation from background service worker
-    window.dispatchEvent(new CustomEvent("open-trancy:translating-start", { detail: { videoId } }));
+    window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
     
     try {
-      const resp = await OpenTrancyUtils.sendMessageToBackground({
+      const resp = await BrancyUtils.sendMessageToBackground({
         action: "TRANSLATE_SUBTITLES",
         cues: segmentedCues,
         videoId
@@ -91,12 +91,12 @@ class YouTubeCaptionManager {
         this.cues = segmentedCues;
       }
     } catch (err) {
-      console.error("[OpenTrancy] Translation failed, using original subtitles:", err);
+      console.error("[Brancy] Translation failed, using original subtitles:", err);
       this.cues = segmentedCues;
     }
 
     this.isLoading = false;
-    window.dispatchEvent(new CustomEvent("open-trancy:cues-ready", {
+    window.dispatchEvent(new CustomEvent("brancy:cues-ready", {
       detail: { cues: this.cues, videoId }
     }));
 
@@ -140,7 +140,7 @@ class YouTubeCaptionManager {
         }
       }
     } catch (e) {
-      console.warn("[OpenTrancy] Fallback HTML scrape failed:", e);
+      console.warn("[Brancy] Fallback HTML scrape failed:", e);
     }
     return null;
   }
@@ -175,7 +175,7 @@ class YouTubeCaptionManager {
     }
 
     try {
-      const bgRes = await OpenTrancyUtils.sendMessageToBackground({
+      const bgRes = await BrancyUtils.sendMessageToBackground({
         action: "FETCH_TIMEDTEXT",
         url
       });
@@ -183,7 +183,7 @@ class YouTubeCaptionManager {
         return bgRes.events || [];
       }
     } catch (err) {
-      console.error("[OpenTrancy] Background timedtext fetch failed:", err);
+      console.error("[Brancy] Background timedtext fetch failed:", err);
     }
 
     return [];
@@ -258,5 +258,5 @@ class YouTubeCaptionManager {
 }
 
 if (typeof window !== "undefined") {
-  window.OpenTrancyCaptions = new YouTubeCaptionManager();
+  window.BrancyCaptions = new YouTubeCaptionManager();
 }

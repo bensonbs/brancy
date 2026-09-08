@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Background Service Worker
+ * Brancy Background Service Worker
  */
 
 import { translateSubtitleCues, translateWebTexts, lookupWordDetails } from "./translator.js";
@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS = {
 };
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log("[OpenTrancy] Extension installed or updated:", details.reason);
+  console.log("[Brancy] Extension installed or updated:", details.reason);
   const current = await getSettings();
   const merged = { ...DEFAULT_SETTINGS, ...current };
   await chrome.storage.local.set(merged);
@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const results = await translateWebTexts(message.texts, settings);
           return { success: true, data: results };
         } catch (err) {
-          console.error("[OpenTrancy] TRANSLATE_TEXTS error:", err);
+          console.error("[Brancy] TRANSLATE_TEXTS error:", err);
           return { success: false, error: err.message };
         }
       }
@@ -78,7 +78,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const cues = await translateSubtitleCues(message.cues, settings, message.videoId);
           return { success: true, data: cues };
         } catch (err) {
-          console.error("[OpenTrancy] TRANSLATE_SUBTITLES error:", err);
+          console.error("[Brancy] TRANSLATE_SUBTITLES error:", err);
           return { success: false, error: err.message };
         }
       }
@@ -88,7 +88,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const data = await lookupWordDetails(message.word, settings);
           return { success: true, data };
         } catch (err) {
-          console.error("[OpenTrancy] LOOKUP_WORD error:", err);
+          console.error("[Brancy] LOOKUP_WORD error:", err);
           return { success: false, error: err.message };
         }
       }

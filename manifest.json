@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "OpenTrancy - AI 雙語網頁與 YouTube 翻譯",
+  "name": "Brancy - AI 雙語網頁與 YouTube 翻譯",
   "version": "1.0.0",
   "description": "開源免費的 Trancy 替代方案。支援 YouTube 雙語字幕、互動腳本側邊欄、單句複讀、網頁沉浸式雙語翻譯與劃詞查詞，支援 Google 翻譯與自訂 OpenRouter AI 金鑰。",
   "icons": {
@@ -10,7 +10,7 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "OpenTrancy 雙語翻譯",
+    "default_title": "Brancy 雙語翻譯",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

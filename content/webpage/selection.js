@@ -1,5 +1,5 @@
 /**
- * OpenTrancy Selection & Hover Word Lookup (Trancy-style Quick Lookup)
+ * Brancy Selection & Hover Word Lookup (Trancy-style Quick Lookup)
  */
 
 (function () {
@@ -8,17 +8,17 @@
   let lastSelectionText = "";
 
   async function init() {
-    settings = await OpenTrancyUtils.getSettings();
+    settings = await BrancyUtils.getSettings();
     createPopupElement();
     bindEvents();
   }
 
   function createPopupElement() {
-    if (document.getElementById("open-trancy-selection-popup")) return;
+    if (document.getElementById("brancy-selection-popup")) return;
 
     popupEl = document.createElement("div");
-    popupEl.id = "open-trancy-selection-popup";
-    popupEl.className = "open-trancy-selection-popup hidden";
+    popupEl.id = "brancy-selection-popup";
+    popupEl.className = "brancy-selection-popup hidden";
     document.body.appendChild(popupEl);
   }
 
@@ -108,7 +108,7 @@
 
   async function renderWordDetails(word) {
     try {
-      const data = await OpenTrancyDict.lookupWord(word);
+      const data = await BrancyDict.lookupWord(word);
       if (!data) {
         await renderPhraseTranslation(word);
         return;
@@ -118,20 +118,20 @@
       if (data.meanings && data.meanings.length > 0) {
         meaningsHtml = data.meanings.map(m => `
           <div class="ot-popup-def">
-            <span class="ot-popup-pos">${OpenTrancyUtils.escapeHtml(m.partOfSpeech)}</span>
-            <span class="ot-popup-def-text">${OpenTrancyUtils.escapeHtml(m.definition)}</span>
+            <span class="ot-popup-pos">${BrancyUtils.escapeHtml(m.partOfSpeech)}</span>
+            <span class="ot-popup-def-text">${BrancyUtils.escapeHtml(m.definition)}</span>
           </div>
         `).join("");
       }
 
       popupEl.innerHTML = `
         <div class="ot-popup-header">
-          <div class="ot-popup-word">${OpenTrancyUtils.escapeHtml(data.word)}</div>
-          ${data.phonetic ? `<div class="ot-popup-phonetic">[${OpenTrancyUtils.escapeHtml(data.phonetic)}]</div>` : ""}
+          <div class="ot-popup-word">${BrancyUtils.escapeHtml(data.word)}</div>
+          ${data.phonetic ? `<div class="ot-popup-phonetic">[${BrancyUtils.escapeHtml(data.phonetic)}]</div>` : ""}
           <button class="ot-popup-btn" id="ot-popup-speak" title="朗讀">🔊</button>
           <button class="ot-popup-btn" id="ot-popup-copy" title="複製">📋</button>
         </div>
-        <div class="ot-popup-trans">${OpenTrancyUtils.escapeHtml(data.translation || "")}</div>
+        <div class="ot-popup-trans">${BrancyUtils.escapeHtml(data.translation || "")}</div>
         ${meaningsHtml ? `<div class="ot-popup-meanings">${meaningsHtml}</div>` : ""}
       `;
 
@@ -143,7 +143,7 @@
 
   async function renderPhraseTranslation(text) {
     try {
-      const res = await OpenTrancyUtils.sendMessageToBackground({
+      const res = await BrancyUtils.sendMessageToBackground({
         action: "TRANSLATE_TEXTS",
         texts: [text]
       });
@@ -156,12 +156,12 @@
 
       popupEl.innerHTML = `
         <div class="ot-popup-header">
-          <span class="ot-popup-label">OpenTrancy 翻譯</span>
+          <span class="ot-popup-label">Brancy 翻譯</span>
           <button class="ot-popup-btn" id="ot-popup-speak" title="朗讀">🔊</button>
           <button class="ot-popup-btn" id="ot-popup-copy" title="複製">📋</button>
         </div>
-        <div class="ot-popup-trans">${OpenTrancyUtils.escapeHtml(translation)}</div>
-        <div class="ot-popup-orig">${OpenTrancyUtils.escapeHtml(text)}</div>
+        <div class="ot-popup-trans">${BrancyUtils.escapeHtml(translation)}</div>
+        <div class="ot-popup-orig">${BrancyUtils.escapeHtml(text)}</div>
       `;
 
       bindPopupActions(text, translation);
@@ -172,7 +172,7 @@
 
   function bindPopupActions(text, translation) {
     popupEl.querySelector("#ot-popup-speak")?.addEventListener("click", () => {
-      OpenTrancyUtils.speakText(text);
+      BrancyUtils.speakText(text);
     });
 
     popupEl.querySelector("#ot-popup-copy")?.addEventListener("click", () => {
@@ -190,7 +190,7 @@
       <div class="ot-popup-header">
         <span class="ot-popup-label" style="color: #f87171;">翻譯錯誤</span>
       </div>
-      <div class="ot-popup-error">${OpenTrancyUtils.escapeHtml(msg)}</div>
+      <div class="ot-popup-error">${BrancyUtils.escapeHtml(msg)}</div>
     `;
   }
 

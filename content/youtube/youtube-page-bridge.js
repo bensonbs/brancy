@@ -1,5 +1,5 @@
 /**
- * OpenTrancy YouTube Page Bridge (Runs in MAIN world)
+ * Brancy YouTube Page Bridge (Runs in MAIN world)
  * Has direct access to window.ytInitialPlayerResponse and movie_player
  */
 
@@ -25,7 +25,7 @@
         }
       }
     } catch (e) {
-      console.warn("[OpenTrancy Page Bridge] Error reading player response:", e);
+      console.warn("[Brancy Page Bridge] Error reading player response:", e);
     }
     return null;
   }
