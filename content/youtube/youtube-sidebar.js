@@ -133,7 +133,23 @@ class YouTubeSidebar {
 
     window.addEventListener("brancy:translating-start", () => {
       const list = this.container.querySelector("#ot-sidebar-cue-list");
-      list.innerHTML = `<div class="ot-sidebar-loading"><div class="ot-spinner"></div>AI 雙語字幕翻譯中...</div>`;
+      list.innerHTML = `
+        <div class="ot-sidebar-shimmer-wrap">
+          <div class="ot-sidebar-shimmer-header">
+            <span class="ot-shimmer-sparkle">✨</span>
+            <span class="ot-shimmer-badge-text">AI 雙語字幕即時翻譯中...</span>
+          </div>
+          ${Array(6).fill(0).map(() => `
+            <div class="ot-cue-item ot-shimmer-cue-row">
+              <div class="ot-shimmer-bar" style="width: 32px; height: 14px; flex-shrink: 0;"></div>
+              <div class="ot-cue-body" style="flex: 1;">
+                <div class="ot-shimmer-bar" style="width: 82%; height: 14px; margin-bottom: 6px;"></div>
+                <div class="ot-shimmer-bar" style="width: 58%; height: 12px;"></div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
     });
 
     window.addEventListener("brancy:no-captions", () => {
@@ -161,7 +177,12 @@ class YouTubeSidebar {
   async showWordPopup(word, targetEl) {
     if (!word || !this.tooltipEl) return;
     const rect = targetEl.getBoundingClientRect();
-    this.tooltipEl.innerHTML = `<div class="ot-tooltip-loading">查詢單字中...</div>`;
+    this.tooltipEl.innerHTML = `
+      <div class="ot-popup-shimmer">
+        <div class="ot-shimmer-bar" style="width: 65%; height: 15px; margin-bottom: 6px;"></div>
+        <div class="ot-shimmer-bar" style="width: 88%; height: 12px;"></div>
+      </div>
+    `;
     this.tooltipEl.classList.remove("hidden");
     this.tooltipEl.style.top = `${rect.bottom + window.scrollY + 6}px`;
     this.tooltipEl.style.left = `${Math.min(window.innerWidth - 260, Math.max(10, rect.left))}px`;

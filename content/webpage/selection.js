@@ -78,9 +78,15 @@
     if (!popupEl) return;
 
     popupEl.innerHTML = `
-      <div class="ot-popup-loading">
-        <span class="ot-popup-spinner"></span>
-        <span>翻譯中...</span>
+      <div class="ot-popup-shimmer">
+        <div class="ot-popup-shimmer-header">
+          <span class="ot-shimmer-badge">
+            <span class="ot-shimmer-sparkle">✨</span>
+            <span>AI 查詞翻譯中...</span>
+          </span>
+        </div>
+        <div class="ot-shimmer-bar" style="width: 88%; height: 16px; margin: 8px 0 6px 0;"></div>
+        <div class="ot-shimmer-bar" style="width: 60%; height: 13px;"></div>
       </div>
     `;
     positionPopup(rect);

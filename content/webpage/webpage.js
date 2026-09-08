@@ -1,5 +1,5 @@
 /**
- * Brancy Immersive Webpage Bilingual Translation
+ * Brancy Immersive Webpage Bilingual Translation with Shimmer Animation
  */
 
 (function () {
@@ -55,12 +55,15 @@
       return;
     }
 
-    const BATCH_SIZE = 20;
+    const BATCH_SIZE = 15;
     let translatedCount = 0;
 
     for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
       const batch = candidates.slice(i, i + BATCH_SIZE);
       const texts = batch.map(el => el.innerText.trim());
+
+      // 1. Immediately inject shimmer skeleton placeholders for immediate visual feedback
+      const shimmerBlocks = batch.map(el => createShimmerBlock(el));
 
       try {
         const res = await BrancyUtils.sendMessageToBackground({
@@ -71,14 +74,24 @@
         if (res && res.success && res.data) {
           batch.forEach((el, idx) => {
             const trans = res.data[idx];
+            const block = shimmerBlocks[idx];
             if (trans && trans !== el.innerText.trim()) {
-              injectTranslationBlock(el, trans);
+              resolveShimmerBlock(block, el, trans);
               translatedCount++;
+            } else if (block) {
+              block.remove();
+              delete el.dataset.otTranslated;
             }
           });
+        } else {
+          // If translation error, remove shimmer placeholders
+          shimmerBlocks.forEach(b => b && b.remove());
+          batch.forEach(el => delete el.dataset.otTranslated);
         }
       } catch (err) {
         console.warn("[Brancy] Batch translation error:", err);
+        shimmerBlocks.forEach(b => b && b.remove());
+        batch.forEach(el => delete el.dataset.otTranslated);
       }
     }
 
@@ -90,6 +103,7 @@
 
   function restoreOriginalPage() {
     document.querySelectorAll(".brancy-web-trans").forEach(el => el.remove());
+    document.querySelectorAll("[data-ot-translated]").forEach(el => delete el.dataset.otTranslated);
     document.body.classList.remove("ot-page-translated");
     isPageTranslated = false;
     showToast("Brancy: 已還原原始網頁");
@@ -101,7 +115,7 @@
 
     return all.filter(el => {
       // Exclude hidden or non-content elements
-      if (el.closest("header, footer, nav, aside, pre, code, script, style, noscript, .brancy-web-trans, #brancy-floating-ball, #brancy-sidebar")) {
+      if (el.closest("header, footer, nav, aside, pre, code, script, style, noscript, .brancy-web-trans, #brancy-floating-ball, #brancy-sidebar, .open-trancy-floating-ball, .open-trancy-sidebar")) {
         return false;
       }
       if (el.dataset.otTranslated) {
@@ -123,12 +137,44 @@
     });
   }
 
-  function injectTranslationBlock(originalEl, translatedText) {
-    if (originalEl.dataset.otTranslated) return;
-    originalEl.dataset.otTranslated = "true";
+  /**
+   * Create sliding shimmer placeholder block
+   */
+  function createShimmerBlock(originalEl) {
+    if (originalEl.dataset.otTranslated) return null;
+    originalEl.dataset.otTranslated = "pending";
 
     const block = document.createElement("div");
-    block.className = "brancy-web-trans";
+    block.className = "brancy-web-trans ot-shimmer-loading";
+    block.innerHTML = `
+      <div class="ot-shimmer-content">
+        <div class="ot-shimmer-bar ot-shimmer-bar-lg"></div>
+        <div class="ot-shimmer-bar ot-shimmer-bar-sm"></div>
+      </div>
+      <div class="ot-shimmer-badge">
+        <span class="ot-shimmer-sparkle">✨</span>
+        <span>AI 翻譯中...</span>
+      </div>
+    `;
+
+    // Insert as next sibling
+    if (originalEl.nextSibling) {
+      originalEl.parentNode.insertBefore(block, originalEl.nextSibling);
+    } else {
+      originalEl.parentNode.appendChild(block);
+    }
+    return block;
+  }
+
+  /**
+   * Replace shimmer block with translated content smoothly
+   */
+  function resolveShimmerBlock(block, originalEl, translatedText) {
+    if (!block) return;
+    originalEl.dataset.otTranslated = "true";
+
+    block.classList.remove("ot-shimmer-loading");
+    block.classList.add("ot-trans-fade-in");
     block.innerHTML = `
       <div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div>
       <div class="ot-web-trans-tools">
@@ -150,13 +196,6 @@
       btn.textContent = "✓";
       setTimeout(() => (btn.textContent = "📋"), 1500);
     });
-
-    // Insert as next sibling
-    if (originalEl.nextSibling) {
-      originalEl.parentNode.insertBefore(block, originalEl.nextSibling);
-    } else {
-      originalEl.parentNode.appendChild(block);
-    }
   }
 
   function showToast(msg) {

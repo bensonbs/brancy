@@ -525,3 +525,74 @@
   margin-right: 4px;
   font-weight: 600;
 }
+
+/* Shimmer Animations & Styles for YouTube Sidebar & Tooltips */
+@keyframes brancy-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes brancy-pulse {
+  0% { transform: scale(0.92); opacity: 0.75; }
+  100% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.8)); }
+}
+
+.ot-sidebar-shimmer-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ot-sidebar-shimmer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c7d2fe;
+}
+
+.ot-shimmer-cue-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.ot-shimmer-bar {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(168, 85, 247, 0.35) 45%,
+    rgba(236, 72, 153, 0.25) 55%,
+    rgba(168, 85, 247, 0.35) 65%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  background-size: 250% 100%;
+  animation: brancy-shimmer 1.6s infinite ease-in-out;
+}
+
+.ot-shimmer-sparkle {
+  display: inline-block;
+  animation: brancy-pulse 1.2s infinite alternate ease-in-out;
+}
+
+.ot-popup-shimmer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
