@@ -1,0 +1,98 @@
+{
+  "manifest_version": 3,
+  "name": "OpenTrancy - AI 雙語網頁與 YouTube 翻譯",
+  "version": "1.0.0",
+  "description": "開源免費的 Trancy 替代方案。支援 YouTube 雙語字幕、互動腳本側邊欄、單句複讀、網頁沉浸式雙語翻譯與劃詞查詞，支援 Google 翻譯與自訂 OpenRouter AI 金鑰。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "OpenTrancy 雙語翻譯",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "https://translate.googleapis.com/*",
+    "https://translation.googleapis.com/*",
+    "https://openrouter.ai/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/youtube/youtube-page-bridge.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/common/utils.js",
+        "content/common/dict.js",
+        "content/youtube/youtube-captions.js",
+        "content/youtube/youtube-sidebar.js",
+        "content/youtube/youtube.js"
+      ],
+      "css": [
+        "content/youtube/youtube.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/common/utils.js",
+        "content/common/dict.js",
+        "content/webpage/selection.js",
+        "content/webpage/floating-ball.js",
+        "content/webpage/webpage.js"
+      ],
+      "css": [
+        "content/webpage/webpage.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "content/youtube/youtube-page-bridge.js"
+      ],
+      "matches": [
+        "*://*.youtube.com/*",
+        "<all_urls>"
+      ]
+    }
+  ]
+}

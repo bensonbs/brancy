@@ -1,0 +1,400 @@
+/* OpenTrancy Options Page Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0d0d11;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.ot-opt-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* Sidebar */
+.ot-opt-sidebar {
+  width: 250px;
+  background: #14141a;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  flex-shrink: 0;
+}
+
+.ot-opt-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding-left: 8px;
+}
+
+.ot-opt-logo {
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.ot-opt-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.ot-opt-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ot-opt-version {
+  font-size: 11px;
+  color: #818cf8;
+}
+
+.ot-opt-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ot-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.ot-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.ot-nav-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  font-weight: 600;
+}
+
+.ot-nav-icon {
+  font-size: 16px;
+}
+
+/* Main Content */
+.ot-opt-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 48px 80px 48px;
+  position: relative;
+}
+
+.ot-section {
+  display: none;
+  max-width: 760px;
+  flex-direction: column;
+  gap: 20px;
+  animation: ot-fade-in 0.2s ease;
+}
+
+.ot-section.active {
+  display: flex;
+}
+
+@keyframes ot-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ot-section-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.ot-section-header p {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* Cards */
+.ot-card {
+  background: #181820;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ot-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ot-card-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.ot-card-desc a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.ot-card-desc a:hover {
+  text-decoration: underline;
+}
+
+.ot-badge-ai {
+  font-size: 10px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Fields */
+.ot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ot-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.ot-input {
+  background: #22222c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ot-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.ot-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.ot-input-group .ot-input {
+  flex: 1;
+}
+
+.ot-field-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ot-field-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.ot-field-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.ot-range {
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.ot-color-picker {
+  width: 48px;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* Buttons */
+.ot-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ot-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ot-btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ot-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fff;
+}
+
+.ot-test-status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ot-test-status.success {
+  color: #4ade80;
+}
+
+.ot-test-status.error {
+  color: #f87171;
+}
+
+.ot-test-status.loading {
+  color: #94a3b8;
+}
+
+/* Subtitle Preview Box */
+.ot-sub-preview-container {
+  background: #000;
+  border-radius: 8px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ot-preview-box {
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 80%;
+  backdrop-filter: blur(8px);
+}
+
+.ot-preview-line {
+  line-height: 1.35;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.ot-preview-line.target {
+  font-weight: 600;
+}
+
+.ot-preview-line.origin {
+  opacity: 0.9;
+  color: #e2e8f0;
+}
+
+.ot-preview-box.origin-first {
+  flex-direction: column-reverse;
+}
+
+/* Shortcuts Table */
+.ot-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ot-shortcuts-table th, .ot-shortcuts-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ot-shortcuts-table th {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.ot-shortcuts-table td kbd {
+  display: inline-block;
+  background: #252530;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #f1f5f9;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Save Bar */
+.ot-save-bar {
+  position: fixed;
+  bottom: 20px;
+  right: 48px;
+  background: rgba(24, 24, 32, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #4ade80;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.hidden {
+  display: none !important;
+}
