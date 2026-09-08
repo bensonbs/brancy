@@ -43,6 +43,12 @@
   async function translateCurrentPage() {
     if (isTranslating) return;
     isTranslating = true;
+
+    // Clean up any stale pending markers from aborted runs
+    document.querySelectorAll("[data-ot-translated='pending']").forEach(el => {
+      delete el.dataset.otTranslated;
+    });
+
     showToast("Brancy: 正在雙語翻譯網頁內容...");
 
     settings = await BrancyUtils.getSettings();
@@ -50,13 +56,15 @@
     // Collect candidate DOM elements
     const candidates = findTranslateCandidates();
     if (candidates.length === 0) {
-      showToast("Brancy: 未找到適合翻譯的段落");
+      showToast("Brancy: 未找到適合翻譯的文章段落");
       isTranslating = false;
       return;
     }
 
-    const BATCH_SIZE = 15;
+    const BATCH_SIZE = 12;
     let translatedCount = 0;
+    let sameLangCount = 0;
+    let lastErrorMsg = null;
 
     for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
       const batch = candidates.slice(i, i + BATCH_SIZE);
@@ -71,24 +79,39 @@
           texts
         });
 
-        if (res && res.success && res.data) {
+        if (res && res.success && Array.isArray(res.data)) {
           batch.forEach((el, idx) => {
             const trans = res.data[idx];
             const block = shimmerBlocks[idx];
-            if (trans && trans !== el.innerText.trim()) {
+            const orig = el.innerText.trim();
+
+            if (!trans) {
+              if (block) block.remove();
+              delete el.dataset.otTranslated;
+              return;
+            }
+
+            // Normalize and compare ignoring whitespace
+            const cleanOrig = orig.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
+            const cleanTrans = trans.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
+
+            if (cleanTrans && cleanTrans !== cleanOrig) {
               resolveShimmerBlock(block, el, trans);
               translatedCount++;
-            } else if (block) {
-              block.remove();
+            } else {
+              // The text is identical to original (already in target language or untranslatable)
+              sameLangCount++;
+              if (block) block.remove();
               delete el.dataset.otTranslated;
             }
           });
         } else {
-          // If translation error, remove shimmer placeholders
+          lastErrorMsg = res?.error || "翻譯服務無回應";
           shimmerBlocks.forEach(b => b && b.remove());
           batch.forEach(el => delete el.dataset.otTranslated);
         }
       } catch (err) {
+        lastErrorMsg = err.message;
         console.warn("[Brancy] Batch translation error:", err);
         shimmerBlocks.forEach(b => b && b.remove());
         batch.forEach(el => delete el.dataset.otTranslated);
@@ -96,9 +119,23 @@
     }
 
     isTranslating = false;
-    isPageTranslated = true;
-    document.body.classList.add("ot-page-translated");
-    showToast(`Brancy: 完成 ${translatedCount} 段文字雙語翻譯！`);
+
+    if (translatedCount > 0) {
+      isPageTranslated = true;
+      document.body.classList.add("ot-page-translated");
+      showToast(`Brancy: 完成 ${translatedCount} 段文字雙語翻譯！`);
+    } else {
+      isPageTranslated = false;
+      document.body.classList.remove("ot-page-translated");
+
+      if (lastErrorMsg) {
+        showToast(`Brancy 翻譯失敗: ${lastErrorMsg}`);
+      } else if (sameLangCount > 0) {
+        showToast("Brancy: 本頁面內容已是目標語言（或無需翻譯），未檢測到外語段落");
+      } else {
+        showToast("Brancy: 未能找到需要翻譯的外語段落");
+      }
+    }
   }
 
   function restoreOriginalPage() {
@@ -110,7 +147,7 @@
   }
 
   function findTranslateCandidates() {
-    const selector = "p, h1, h2, h3, h4, h5, h6, li, blockquote, article dd, article dt";
+    const selector = "p, h1, h2, h3, h4, h5, h6, li, blockquote, article p, section p, .article-content p, .post-content p";
     const all = Array.from(document.querySelectorAll(selector));
 
     return all.filter(el => {
@@ -118,19 +155,28 @@
       if (el.closest("header, footer, nav, aside, pre, code, script, style, noscript, .brancy-web-trans, #brancy-floating-ball, #brancy-sidebar, .open-trancy-floating-ball, .open-trancy-sidebar")) {
         return false;
       }
-      if (el.dataset.otTranslated) {
+      // Don't translate if already translated
+      if (el.dataset.otTranslated === "true") {
         return false;
       }
+
+      // If this element contains another candidate child, only translate the leaf child
+      const hasCandidateChild = all.some(other => other !== el && el.contains(other));
+      if (hasCandidateChild) {
+        return false;
+      }
+
       // Must be visible
-      const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
         return false;
       }
+
       // Check text content
       const text = el.innerText ? el.innerText.trim() : "";
-      if (text.length < 8) return false;
-      // Don't translate pure numbers or code
+      if (text.length < 5) return false;
+
+      // Don't translate pure numbers or symbols
       if (/^[\d\s.,\/#!$%\^&\*;:{}=\-_`~()]+$/.test(text)) return false;
 
       return true;
@@ -210,7 +256,7 @@
     toast.classList.add("show");
     setTimeout(() => {
       toast.classList.remove("show");
-    }, 2800);
+    }, 3200);
   }
 
   // Expose global controller

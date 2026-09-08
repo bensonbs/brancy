@@ -48,10 +48,10 @@ export async function translateBatchGoogleFree(texts, targetLang = "zh-TW") {
       }
       try {
         const trans = await translateSingleGoogleFree(txt, targetLang);
-        results[realIndex] = trans;
+        results[realIndex] = trans || txt;
       } catch (err) {
         console.warn("[GoogleFree] Failed for text:", txt, err);
-        results[realIndex] = txt;
+        results[realIndex] = ""; // Keep empty to signal failure rather than original text
       }
     });
     await Promise.all(chunkPromises);
@@ -64,7 +64,7 @@ export async function translateBatchGoogleFree(texts, targetLang = "zh-TW") {
  * Google Cloud Official Translation API v2
  */
 export async function translateGoogleCloudAPI({ apiKey, texts, targetLang = "zh-TW" }) {
-  if (!apiKey) {
+  if (!apiKey || !apiKey.trim()) {
     throw new Error("請先在 Brancy 設定頁面填寫 Google Cloud Translation API Key！");
   }
   if (!texts || texts.length === 0) return [];
@@ -105,8 +105,18 @@ export async function translateSubtitleCues(cues, settings, videoId) {
   if (!cues || cues.length === 0) return [];
 
   const targetLang = settings.targetLang || "zh-TW";
-  const engine = settings.engine || "google_free";
+  let engine = settings.engine || "google_free";
   const model = settings.openRouterModel || "google/gemini-2.5-flash";
+
+  // Auto fallback if key is missing
+  if (engine === "openrouter" && (!settings.openRouterKey || !settings.openRouterKey.trim())) {
+    console.warn("[Brancy] 未填寫 OpenRouter Key，字幕自動降級為 Google 免費翻譯");
+    engine = "google_free";
+  }
+  if (engine === "google_api" && (!settings.googleApiKey || !settings.googleApiKey.trim())) {
+    console.warn("[Brancy] 未填寫 Google API Key，字幕自動降級為 Google 免費翻譯");
+    engine = "google_free";
+  }
 
   // Check storage cache
   const cacheKey = `sub_${videoId}_${targetLang}_${engine}_${engine === "openrouter" ? model : ""}`;
@@ -119,31 +129,51 @@ export async function translateSubtitleCues(cues, settings, videoId) {
   let translatedCues = [];
 
   if (engine === "openrouter") {
-    // Translate with OpenRouter in chunks of 25 sentences for best speed and accuracy
-    const CHUNK_SIZE = 25;
-    translatedCues = [];
-    
-    for (let i = 0; i < cues.length; i += CHUNK_SIZE) {
-      const chunk = cues.slice(i, i + CHUNK_SIZE);
-      const translatedChunk = await translateSubtitlesWithOpenRouter({
-        apiKey: settings.openRouterKey,
-        model: settings.openRouterModel,
-        cues: chunk,
-        targetLang
-      });
-      translatedCues.push(...translatedChunk);
+    try {
+      // Translate with OpenRouter in chunks of 25 sentences for best speed and accuracy
+      const CHUNK_SIZE = 25;
+      translatedCues = [];
+      
+      for (let i = 0; i < cues.length; i += CHUNK_SIZE) {
+        const chunk = cues.slice(i, i + CHUNK_SIZE);
+        const translatedChunk = await translateSubtitlesWithOpenRouter({
+          apiKey: settings.openRouterKey,
+          model: settings.openRouterModel,
+          cues: chunk,
+          targetLang
+        });
+        translatedCues.push(...translatedChunk);
+      }
+    } catch (err) {
+      console.warn("[Brancy] OpenRouter 字幕翻譯失敗，自動降級為 Google 免費端點:", err.message);
+      const texts = cues.map(c => c.text);
+      const translatedTexts = await translateBatchGoogleFree(texts, targetLang);
+      translatedCues = cues.map((cue, idx) => ({
+        ...cue,
+        translation: translatedTexts[idx] || cue.text
+      }));
     }
   } else if (engine === "google_api") {
-    const texts = cues.map(c => c.text);
-    const translatedTexts = await translateGoogleCloudAPI({
-      apiKey: settings.googleApiKey,
-      texts,
-      targetLang
-    });
-    translatedCues = cues.map((cue, idx) => ({
-      ...cue,
-      translation: translatedTexts[idx] || cue.text
-    }));
+    try {
+      const texts = cues.map(c => c.text);
+      const translatedTexts = await translateGoogleCloudAPI({
+        apiKey: settings.googleApiKey,
+        texts,
+        targetLang
+      });
+      translatedCues = cues.map((cue, idx) => ({
+        ...cue,
+        translation: translatedTexts[idx] || cue.text
+      }));
+    } catch (err) {
+      console.warn("[Brancy] Google Cloud API 失敗，降級為 Google 免費端點:", err.message);
+      const texts = cues.map(c => c.text);
+      const translatedTexts = await translateBatchGoogleFree(texts, targetLang);
+      translatedCues = cues.map((cue, idx) => ({
+        ...cue,
+        translation: translatedTexts[idx] || cue.text
+      }));
+    }
   } else {
     // Default: google_free
     const texts = cues.map(c => c.text);
@@ -169,21 +199,41 @@ export async function translateWebTexts(texts, settings) {
   if (!texts || texts.length === 0) return [];
 
   const targetLang = settings.targetLang || "zh-TW";
-  const engine = settings.engine || "google_free";
+  let engine = settings.engine || "google_free";
+
+  // Auto fallback if key is missing
+  if (engine === "openrouter" && (!settings.openRouterKey || !settings.openRouterKey.trim())) {
+    console.warn("[Brancy] 未填寫 OpenRouter Key，自動降級為 Google 免費翻譯");
+    engine = "google_free";
+  }
+  if (engine === "google_api" && (!settings.googleApiKey || !settings.googleApiKey.trim())) {
+    console.warn("[Brancy] 未填寫 Google API Key，自動降級為 Google 免費翻譯");
+    engine = "google_free";
+  }
 
   if (engine === "openrouter") {
-    return await translateWebTextsWithOpenRouter({
-      apiKey: settings.openRouterKey,
-      model: settings.openRouterModel,
-      texts,
-      targetLang
-    });
+    try {
+      return await translateWebTextsWithOpenRouter({
+        apiKey: settings.openRouterKey,
+        model: settings.openRouterModel,
+        texts,
+        targetLang
+      });
+    } catch (err) {
+      console.warn("[Brancy] OpenRouter 呼叫失敗，自動降級為 Google 免費翻譯:", err.message);
+      return await translateBatchGoogleFree(texts, targetLang);
+    }
   } else if (engine === "google_api") {
-    return await translateGoogleCloudAPI({
-      apiKey: settings.googleApiKey,
-      texts,
-      targetLang
-    });
+    try {
+      return await translateGoogleCloudAPI({
+        apiKey: settings.googleApiKey,
+        texts,
+        targetLang
+      });
+    } catch (err) {
+      console.warn("[Brancy] Google Cloud API 失敗，自動降級為 Google 免費翻譯:", err.message);
+      return await translateBatchGoogleFree(texts, targetLang);
+    }
   } else {
     // google_free
     return await translateBatchGoogleFree(texts, targetLang);
