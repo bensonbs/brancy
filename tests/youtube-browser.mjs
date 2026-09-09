@@ -18,7 +18,7 @@ async function fixture() {
     window.requests = [];
     window.settings = { youtubeSubtitleEnabled: true, shortcutsEnabled: true };
     window.BrancyUtils = {
-      stripMusicLabels(text) { return text || ""; },
+      stripSubtitleAnnotations(text) { return text || ""; },
       translationStageLabel(stage) { return stage === 'openrouter' ? 'OpenRouter' : 'Google 暫譯'; },
       async translateProgressively(message, { onUpdate, isCurrent = () => true }) {
         const response = await this.sendMessageToBackground(message);
@@ -100,7 +100,7 @@ try {
   await expectLines(page, 'After seeking');
   await page.waitForFunction(() => requests.some(request => request.message.texts?.[0] === 'After seeking'));
   await page.evaluate(() => reply('After seeking', '拖曳後的新句'));
-  await expectLines(page, 'After seeking');
+  await expectLines(page, 'After seeking', '拖曳後的新句');
   await page.evaluate(() => { media.paused = false; video.dispatchEvent(new Event('play')); });
   await expectLines(page, 'After seeking', '拖曳後的新句');
 

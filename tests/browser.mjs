@@ -60,7 +60,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: resolve(root, 'artifacts/settings-mobile.png'), fullPage: true, animations: "disabled" });
   await page.goto(url + '/popup/popup.html');
-  await page.waitForFunction(() => document.querySelector('#ot-current-model').textContent.includes('Google 暫譯'));
+  await page.waitForFunction(() => document.querySelector('#ot-current-model').hidden);
   assert.equal(await page.locator('#ot-engine-select').count(), 0);
   assert.equal(await page.isChecked('#ot-sw-yt-subs'), true);
   assert.equal(await page.isChecked('#ot-sw-selection'), true);

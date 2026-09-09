@@ -47,7 +47,8 @@ try {
   await respond(page, 0, ['你好']);
   await page.evaluate(() => firstPass);
   assert.equal(await page.evaluate(() => requests.length), 1);
-  assert.deepEqual(await page.evaluate(() => updates[0].stages), ['google']);
+  assert.deepEqual(await page.evaluate(() => updates[0].stages), ['google-only']);
+  assert.equal(await page.evaluate(() => BrancyUtils.translationStageLabel(updates[0].stages[0])), '');
   const texts = Array.from({ length: 19 }, (_, i) => `Source ${i}`);
   await start(page, { action: 'TRANSLATE_TEXTS', texts });
   await respond(page, 1, texts.map((_, i) => `暫譯 ${i}`), refinement);
@@ -156,7 +157,7 @@ try {
   assert.match(await youtube.locator('.ot-sub-stage').textContent(), /Google 暫譯/);
   await youtube.evaluate(() => { media.paused = true; video.dispatchEvent(new Event('pause')); });
   await respond(youtube, 1, ['OpenRouter 字幕']);
-  assert.equal(await youtube.locator('.ot-target-line').textContent(), 'Google 字幕');
+  assert.equal(await youtube.locator('.ot-target-line').textContent(), 'OpenRouter 字幕');
   await youtube.evaluate(() => { media.paused = false; video.dispatchEvent(new Event('play')); });
   assert.equal(await youtube.locator('.ot-target-line').textContent(), 'OpenRouter 字幕');
   assert.equal(await youtube.locator('.ot-sub-stage').textContent(), 'OpenRouter');

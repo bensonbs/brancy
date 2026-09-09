@@ -101,6 +101,15 @@ try {
   await page.evaluate(index => replyRefinement(index), oldRefinement);
   assert.equal(await page.evaluate(() => BrancyCaptions.cues[100].translation), '');
 
+  // A transient failed Google batch is retried once, even while paused.
+  const failedGoogle = await page.evaluate(start => requests.findIndex((r, index) => index >= start && r.message.cues?.[0].id === 200), requestsBeforeChange);
+  const beforeRetry = await page.evaluate(() => requests.length);
+  await page.evaluate(index => requests[index].callback({ success: false, error: 'Temporary failure' }), failedGoogle);
+  await page.waitForFunction(start => requests.slice(start).some(r => r.message.cues?.[0].id === 200), beforeRetry);
+  const retryGoogle = await page.evaluate(start => requests.findIndex((r, index) => index >= start && r.message.cues?.[0].id === 200), beforeRetry);
+  await page.evaluate(index => replyGoogle(index), retryGoogle);
+  await page.waitForFunction(() => BrancyCaptions.cues[200].translation === 'Google 200');
+
   // Navigation invalidates queued work and late responses for the old track.
   await page.evaluate(() => { window.dispatchEvent(new Event('yt-navigate-start')); });
   const publishCount = await page.evaluate(() => published.length);

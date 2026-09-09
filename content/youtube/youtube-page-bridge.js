@@ -5,10 +5,118 @@
 
 (function () {
   let hasHooked = false;
+  const nativeFetch = window.fetch.bind(window);
+  const originalRequests = new Set();
+  let recoveryTimer = null;
+  let recoveryVideoId = null;
+  let receivedTimedText = false;
+  let restartedCc = false;
+
+  function resetRecovery() {
+    clearTimeout(recoveryTimer);
+    recoveryTimer = null;
+    recoveryVideoId = new URLSearchParams(location.search).get("v");
+    receivedTimedText = false;
+    restartedCc = false;
+    originalRequests.clear();
+  }
+
+  function noteTimedText(rawText, videoId) {
+    if (videoId !== recoveryVideoId) return;
+    try {
+      const hasCues = rawText.trim().startsWith("{")
+        ? JSON.parse(rawText).events?.some(event => event.segs?.some(seg => seg.utf8?.trim()))
+        : /<(text|p)\b/.test(rawText);
+      if (hasCues) {
+        receivedTimedText = true;
+        clearTimeout(recoveryTimer);
+        recoveryTimer = null;
+      }
+    } catch { /* Empty/error responses must not disable recovery. */ }
+  }
+
+  function scheduleCaptionRecovery() {
+    if (recoveryTimer || receivedTimedText) return;
+    const videoId = recoveryVideoId;
+    recoveryTimer = setTimeout(() => {
+      recoveryTimer = null;
+      if (videoId !== new URLSearchParams(location.search).get("v") || receivedTimedText) return;
+      const player = document.getElementById("movie_player");
+      if (!player) return;
+      if (player.querySelector?.(".ytp-caption-segment")?.textContent?.trim()) return;
+      const video = player.querySelector?.("video");
+      if (video?.paused || video?.seeking || video?.readyState < 2) {
+        scheduleCaptionRecovery();
+        return;
+      }
+      // YouTube can mark CC as enabled before its caption module is ready.
+      // Reproduce the native off/on action once, without changing the language.
+      const cc = player.querySelector?.(".ytp-subtitles-button");
+      if (!restartedCc && cc?.getAttribute("aria-pressed") === "true") {
+        restartedCc = true;
+        cc.click();
+        cc.click();
+        console.log("[Brancy Page Bridge] Restarted stalled native captions");
+        scheduleCaptionRecovery();
+        return;
+      }
+      // Never change the user's CC track, even to another track in the same language.
+      window.postMessage({ source: "BRANCY_PAGE_BRIDGE", action: "CAPTION_LOAD_FAILED", videoId }, "*");
+    }, 4500);
+  }
 
   function captionVideoId(url) {
     try { return new URL(url, location.href).searchParams.get("v") || new URLSearchParams(location.search).get("v"); }
     catch { return null; }
+  }
+
+  function hasCaptionText(rawText) {
+    try {
+      return rawText.trim().startsWith("{")
+        ? JSON.parse(rawText).events?.some(event => event.segs?.some(seg => seg.utf8?.trim()))
+        : /<(text|p)\b/.test(rawText);
+    } catch { return false; }
+  }
+
+  async function relayCaptions(rawText, url, videoId) {
+    if (videoId !== new URLSearchParams(location.search).get("v")) return;
+    const data = getCaptionTracks();
+    const captured = new URL(url, location.href);
+    const language = captured.searchParams.get("lang");
+    const publish = (text, lang) => {
+      if (videoId !== new URLSearchParams(location.search).get("v")) return;
+      noteTimedText(text, videoId);
+      window.postMessage({ source: "BRANCY_PAGE_BRIDGE", action: "NATIVE_TIMEDTEXT_CAPTURED",
+        rawText: text, videoId, languageCode: lang }, "*");
+    };
+    if (!data?.originalLanguage || (language === data.originalLanguage && !captured.searchParams.has("tlang"))) {
+      publish(rawText, language);
+      return;
+    }
+    // Fetch original captions separately, using the player's already-obtained
+    // request context. Never call setOption or change the user's CC language.
+    const key = videoId + ":" + data.originalLanguage;
+    if (originalRequests.has(key)) return;
+    originalRequests.add(key);
+    window.postMessage({ source: "BRANCY_PAGE_BRIDGE", action: "CAPTION_SOURCE_PENDING", videoId }, "*");
+    for (const track of data.tracks.filter(t => t.original).sort((a, b) => Number(b.kind === "asr") - Number(a.kind === "asr"))) {
+      try {
+        const source = new URL(track.baseUrl);
+        if (source.origin !== location.origin || source.pathname !== "/api/timedtext") continue;
+        source.searchParams.set("fmt", "json3");
+        for (const parameter of ["pot", "potc", "c", "cver", "cplayer", "cplatform", "cos", "cosver"]) {
+          if (captured.searchParams.has(parameter)) source.searchParams.set(parameter, captured.searchParams.get(parameter));
+        }
+        const response = await nativeFetch(source.href, { credentials: "include", signal: AbortSignal.timeout(8000) });
+        const text = await response.text();
+        if (response.ok && hasCaptionText(text)) {
+          console.log("[Brancy Page Bridge] Loaded original captions without changing CC:", data.originalLanguage);
+          publish(text, data.originalLanguage);
+          return;
+        }
+      } catch { /* Try another source track without selecting it in the player. */ }
+    }
+    window.postMessage({ source: "BRANCY_PAGE_BRIDGE", action: "CAPTION_LOAD_FAILED", videoId }, "*");
   }
 
   function initHooks() {
@@ -26,13 +134,7 @@
           const clone = response.clone();
           clone.text().then((rawText) => {
             if (rawText && rawText.trim().length > 0) {
-              window.postMessage({
-                source: "BRANCY_PAGE_BRIDGE",
-                action: "NATIVE_TIMEDTEXT_CAPTURED",
-                rawText,
-                videoId,
-                url
-              }, "*");
+              relayCaptions(rawText, url, videoId);
             }
           }).catch(() => {});
         }
@@ -55,13 +157,7 @@
         this.addEventListener("load", () => {
           try {
             if (this.responseText && this.responseText.trim().length > 0) {
-              window.postMessage({
-                source: "BRANCY_PAGE_BRIDGE",
-                action: "NATIVE_TIMEDTEXT_CAPTURED",
-                rawText: this.responseText,
-                videoId: this._brancyVideoId,
-                url: this._brancyUrl
-              }, "*");
+              relayCaptions(this.responseText, this._brancyUrl, this._brancyVideoId);
             }
           } catch (e) {}
         });
@@ -79,7 +175,14 @@
           const resp = player.getPlayerResponse();
           const tracks = resp?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
           if (tracks && tracks.length > 0) {
-            return { tracks, videoId: resp?.videoDetails?.videoId };
+            const renderer = resp.captions.playerCaptionsTracklistRenderer;
+            const audio = renderer.audioTracks?.[renderer.defaultAudioTrackIndex || 0];
+            const audioLanguage = audio?.audioTrackId?.replace(/\.\d+$/, "");
+            const originalLanguage = tracks.find(t => t.languageCode === audioLanguage)?.languageCode ||
+              (audioLanguage && tracks.find(t => t.languageCode?.split("-")[0] === audioLanguage.split("-")[0])?.languageCode) ||
+              tracks.find(t => t.kind === "asr")?.languageCode || tracks[audio?.captionTrackIndices?.[0]]?.languageCode || tracks[0]?.languageCode;
+            return { tracks: tracks.map(t => ({ ...t, original: t.languageCode === originalLanguage })),
+              originalLanguage, videoId: resp?.videoDetails?.videoId };
           }
         }
 
@@ -119,14 +222,8 @@
         if (typeof player.loadModule === "function") {
           player.loadModule("captions");
         }
-        if (typeof player.getOption === "function") {
-          const tracklist = player.getOption("captions", "tracklist");
-          if (tracklist && tracklist.length > 0) {
-            const en = tracklist.find(t => t.languageCode === "en") || tracklist[0];
-            player.setOption("captions", "track", en);
-          }
-        }
       }
+      scheduleCaptionRecovery();
     } catch (e) {}
   }
 
@@ -154,10 +251,13 @@
     }
   });
 
+  resetRecovery();
+  window.addEventListener("yt-navigate-start", resetRecovery);
   initHooks();
   broadcastCaptionTracks();
 
   window.addEventListener("yt-navigate-finish", () => {
+    if (recoveryVideoId !== new URLSearchParams(location.search).get("v")) resetRecovery();
     setTimeout(broadcastCaptionTracks, 600);
   });
 })();

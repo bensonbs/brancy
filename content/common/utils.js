@@ -66,6 +66,7 @@ function saveSettings(newSettings) {
 
 function sendMessageToBackground(message) {
   return new Promise((resolve, reject) => {
+    let timeout;
     try {
       if (!isExtensionValid() || !chrome.runtime?.sendMessage) {
         return reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
@@ -75,6 +76,7 @@ function sendMessageToBackground(message) {
       const onDone = (response, err) => {
         if (handled) return;
         handled = true;
+        clearTimeout(timeout);
         if (err) {
           const msg = err.message || String(err);
           if (msg.includes("context invalidated") || msg.includes("Receiving end does not exist")) {
@@ -87,6 +89,9 @@ function sendMessageToBackground(message) {
         }
       };
 
+      if (message.action === "TRANSLATE_SUBTITLES" || (message.youtubeSubtitle && message.action === "TRANSLATE_TEXTS")) {
+        timeout = setTimeout(() => onDone(null, new Error("翻譯逾時，請稍後再試")), 20000);
+      }
       const sendRes = chrome.runtime.sendMessage(message, (response) => {
         if (chrome.runtime?.lastError) {
           onDone(null, chrome.runtime.lastError);
@@ -102,6 +107,7 @@ function sendMessageToBackground(message) {
         });
       }
     } catch (err) {
+      clearTimeout(timeout);
       reject(new Error("擴充功能已被重新整理，請按 F5 重新整理此頁面即可恢復！"));
     }
   });
@@ -145,7 +151,7 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
   const drafts = subtitle ? response?.data?.map(cue => cue.translation || "")
     : word ? [response?.data?.translation || ""] : response?.data;
   const data = response?.data;
-  const stages = sources.map(() => response?.refinement ? "pending" : "google");
+  const stages = sources.map(() => response?.refinement ? "pending" : "google-only");
   const statuses = sources.map(() => "");
   const publish = () => onUpdate({ ...response, data: subtitle ? data.map(cue => ({ ...cue }))
     : word ? { ...data } : [...data], stages: [...stages], statuses: [...statuses] });
@@ -169,7 +175,7 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
     refinementQueue.push({ isCurrent: current, priority,
       finish: () => { if (--pendingJobs === 0) pendingTranslations.delete(cancel); }, run: async () => {
     try {
-      const refined = await sendMessageToBackground({ action: "REFINE_TEXTS", context: response.refinement,
+      const refined = await sendMessageToBackground({ action: "REFINE_TEXTS", youtubeSubtitle: message.youtubeSubtitle === true || subtitle, context: response.refinement,
         texts: indices.map(i => sources[i]), drafts: indices.map(i => drafts[i]) });
       if (!current()) return;
       if (!refined?.success || !Array.isArray(refined.data) || refined.data.length !== indices.length) {
@@ -202,12 +208,20 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
 }
 
 function translationStageLabel(stage) {
-  return stage === "openrouter" ? "OpenRouter" : stage === "pending" ? "Google 暫譯 · OpenRouter 補譯中…" : "Google 暫譯";
+  return stage === "google-only" ? "" : stage === "openrouter" ? "OpenRouter" : stage === "pending" ? "Google 暫譯 · OpenRouter 補譯中…" : "Google 暫譯";
 }
 
-// Remove only bracketed music labels, preserving speech and other annotations.
-function stripMusicLabels(text) {
-  return String(text || "").replace(/\[\s*(?:music|音樂|音乐|音楽)\s*\]|【\s*(?:music|音樂|音乐|音楽)\s*】|［\s*(?:music|音樂|音乐|音楽)\s*］|\(\s*(?:music|音樂|音乐|音楽)\s*\)|（\s*(?:music|音樂|音乐|音楽)\s*）/gi, " ")
+// Strip square-bracket annotations from subtitles, including nested labels.
+// Preserve ordinary parenthetical dialogue; retain the existing music-only
+// filtering for round parentheses.
+function stripSubtitleAnnotations(text) {
+  let cleaned = String(text || "");
+  let previous;
+  do {
+    previous = cleaned;
+    cleaned = cleaned.replace(/\[[^\[\]]*\]|【[^【】]*】|［[^［］]*］/g, " ");
+  } while (cleaned !== previous);
+  return cleaned.replace(/\(\s*(?:music|音樂|音乐|音楽)\s*\)|（\s*(?:music|音樂|音乐|音楽)\s*）/gi, " ")
     .replace(/\s+/g, " ").trim();
 }
 
@@ -273,7 +287,7 @@ if (typeof window !== "undefined") {
     sendMessageToBackground,
     translateProgressively,
     translationStageLabel,
-    stripMusicLabels,
+    stripSubtitleAnnotations,
     formatTime,
     escapeHtml,
     debounce,

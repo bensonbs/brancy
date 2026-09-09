@@ -34,9 +34,9 @@
 
 ## 使用方式
 
-1. 從 [Releases](https://github.com/bensonbs/brancy/releases/latest) 下載 `brancy-v1.2.2.zip` 並解壓縮。
+1. 從 [Releases](https://github.com/bensonbs/brancy/releases/latest) 下載 `brancy-v1.2.3.zip` 並解壓縮。
 2. 在 `chrome://extensions` 開啟開發人員模式，選擇「載入未封裝項目」。
-3. 選取解壓縮後含有 `manifest.json` 的 `brancy-v1.2.2` 目錄（開發者也可直接選取本專案目錄）。更新程式後，請在擴充功能管理頁按「重新載入」，並重新整理已開啟的網頁。
+3. 選取解壓縮後含有 `manifest.json` 的 `brancy-v1.2.3` 目錄（開發者也可直接選取本專案目錄）。更新程式後，請在擴充功能管理頁按「重新載入」，並重新整理已開啟的網頁。
 4. 在一般網頁按右鍵，選擇 **Brancy：翻譯網頁／還原原文**。再次選擇會移除譯文。
 
 網頁翻譯僅由右鍵選單操作，沒有鍵盤快捷鍵。翻譯進行中也可再次選擇右鍵選單來停止並還原。
@@ -57,9 +57,9 @@ OpenRouter 使用串流回應，每次請求最多等待 60 秒，每批最多 8
 
 ## 其他功能
 
-- 自動略過字幕中的 `[音樂]`、`[Music]` 等音樂提示，保留同一句中的對話。
+- 自動略過字幕中 `[...]`、`【...】`、`［...］` 內的所有文字（例如音樂、掌聲、笑聲或旁白），保留括號外的對話。
 - YouTube 字幕優先翻譯目前播放位置：第一批 4 句，後續每批最多 8 句，完成即顯示；預先處理附近約 45 秒的字幕，拖曳後優先翻譯新位置，無須等待整部影片翻完。
-- YouTube 雙語字幕依影片播放時間及原始字幕時間碼顯示；暫停凍結即時字幕、拖曳重新對齊，過期翻譯不會蓋回目前畫面。可調整字級、顏色、背景與原文順序。
+- YouTube 雙語字幕依影片播放時間及原始字幕時間碼顯示；暫停凍結即時字幕、拖曳重新對齊，過期翻譯不會蓋回目前畫面。可調整字級、顏色與背景；固定原文在上、繁體中文在下。
 - 劃詞翻譯與英文單字釋義，可隨時關閉。
 - YouTube 字幕本機快取，可從面板或設定頁清除。
 - YouTube 播放快捷鍵：`A` 上一句、`S` 重播、`D` 下一句、`E` 切換字幕。可在設定中關閉。
@@ -73,3 +73,9 @@ OpenRouter 使用串流回應，每次請求最多等待 60 秒，每批最多 8
 右鍵選單與動態載入依照 [Chrome contextMenus API](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) 與 [scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)；翻譯串接參考 [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) 與 [串流協定](https://openrouter.ai/docs/api_reference/streaming)。
 
 展示圖片位於 `docs/images/`，沿用 `icons/icon128.png` 的現有 Logo。安裝開發依賴後，可執行 `node scripts/generate-showcase.mjs` 重新產生圖片。
+
+### YouTube 字幕顯示與狀態
+
+影片雙語字幕固定顯示原語在上、繁體中文在下，不會改選使用者的 YouTube CC 字幕語言。CC 卡住時會重啟一次；若 CC 使用其他語言，Brancy 會另外讀取影片原語字幕。載入、等待翻譯、翻譯錯誤與逾時都有狀態提示；字幕翻譯等待超過 20 秒會顯示逾時。影片未提供可讀字幕時會提示原因，無法直接辨識燒錄在影片畫面中的文字。
+
+未設定 OpenRouter API Key 時，不顯示翻譯來源標籤，仍保留載入、正在翻譯與錯誤提示。

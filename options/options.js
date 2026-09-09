@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     optCustomModel.value = s.openRouterModel ?? "deepseek/deepseek-v4-flash-0731";
 
-    optSubOrder.value = s.youtubePrimaryOrder || "target_first";
+    optSubOrder.value = "origin_first";
     optFontSize.value = s.youtubeFontSize || 20;
     valFontSize.textContent = `${optFontSize.value}px`;
     optOriginFontSize.value = s.youtubeOriginFontSize || 14;

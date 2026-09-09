@@ -20,6 +20,9 @@
   let videoEvents = null;
   let observedPlayer = null;
   let liveTranslateTimer = null;
+  let liveGoogleRequests = 0;
+  let captionLoadStatus = "";
+  let sourcePending = false;
 
   async function init() {
     settings = await BrancyUtils.getSettings();
@@ -40,9 +43,24 @@
     window.addEventListener("brancy:cues-ready", (e) => {
       if (e.detail.videoId !== lastVideoId || e.detail.videoId !== getVideoId()) return;
       invalidateLiveCaption();
+      sourcePending = false;
       cues = e.detail.cues || [];
       currentCueIndex = -1;
       if (videoEl) syncSubtitles(videoEl.currentTime, true);
+    });
+
+    window.addEventListener("brancy:source-pending", event => {
+      if (event.detail.videoId !== getVideoId() || cues.length) return;
+      sourcePending = true;
+      invalidateLiveCaption();
+      captionLoadStatus = "正在載入原語字幕…";
+      renderLines("", "");
+    });
+
+    window.addEventListener("brancy:caption-status", event => {
+      if (event.detail.videoId !== getVideoId()) return;
+      captionLoadStatus = event.detail.status;
+      if (!cues.length && !liveCaption) renderLines("", "");
     });
 
     // Listen for storage changes
@@ -63,6 +81,7 @@
 
   function invalidateLiveCaption() {
     clearTimeout(liveTranslateTimer);
+    liveTranslateTimer = null;
     liveRevision++;
     liveCaption = null;
   }
@@ -72,6 +91,8 @@
     cues = [];
     currentCueIndex = -1;
     lastVideoId = null;
+    captionLoadStatus = "";
+    sourcePending = false;
     renderLines("", "");
   }
 
@@ -88,13 +109,19 @@
     if (videoId !== lastVideoId) {
       resetPlayback();
       lastVideoId = videoId;
+      captionLoadStatus = "正在載入字幕…";
+      renderLines("", "");
       ensureNativeCcEnabled();
       Promise.resolve(BrancyCaptions.fetchCaptionsForCurrentVideo()).then(loaded => {
         if (videoId !== lastVideoId || videoId !== getVideoId() || cues.length || !loaded?.length) return;
         invalidateLiveCaption();
         cues = loaded;
         if (videoEl) syncSubtitles(videoEl.currentTime, true);
-      }).catch(error => console.warn("[Brancy] Could not load caption track:", error));
+      }).catch(error => {
+        if (videoId !== getVideoId()) return;
+        captionLoadStatus = "字幕載入失敗：" + error.message;
+        renderLines("", "");
+      });
     }
   }
 
@@ -136,8 +163,7 @@
     listen("timeupdate", sync);
     listen("play", sync);
     listen("pause", () => {
-      clearTimeout(liveTranslateTimer);
-      if (liveCaption && !liveCaption.requested) liveCaption = null;
+      // Freeze the source, but finish the current sentence's pending translation.
       if (cues.length) syncSubtitles(video.currentTime);
     });
     listen("seeking", () => {
@@ -155,7 +181,7 @@
   }
 
   function nativeCaptionText() {
-    return BrancyUtils.stripMusicLabels(Array.from(observedPlayer?.querySelectorAll(".ytp-caption-segment") || [])
+    return BrancyUtils.stripSubtitleAnnotations(Array.from(observedPlayer?.querySelectorAll(".ytp-caption-segment") || [])
       .map(segment => segment.textContent || "").join(" "));
   }
 
@@ -169,7 +195,7 @@
   }
 
   function readLiveCaption(afterSeek = false) {
-    if (cues.length || !videoEl || !isSubtitleVisible || !lastVideoId || getVideoId() !== lastVideoId) return;
+    if (sourcePending || cues.length || !videoEl || !isSubtitleVisible || !lastVideoId || getVideoId() !== lastVideoId) return;
     // Pausing freezes the current live caption. Late network responses and DOM
     // mutations cannot advance it. Seeking while paused may select a new caption.
     if (videoEl.seeking || (videoEl.paused && !afterSeek)) return;
@@ -181,34 +207,73 @@
     }
     if (liveCaption?.text === text) {
       if (liveCaption.translation) renderLines(liveCaption.translation, text, liveCaption.stage, liveCaption.status);
+      scheduleLiveTranslation();
       return;
     }
-    invalidateLiveCaption();
-    const snapshot = liveCaption = { text, video: videoEl, videoId: lastVideoId,
-      revision: liveRevision, translation: "", requested: false };
-    renderLines("", text);
+    const previous = liveCaption;
+    const continuation = previous && text.startsWith(previous.text);
+    if (!continuation) invalidateLiveCaption();
+    liveCaption = { text, video: videoEl, videoId: lastVideoId,
+      revision: liveRevision, requested: false, retries: 0, failed: false,
+      translation: continuation ? previous.translation : "",
+      stage: continuation ? previous.stage : "google",
+      status: "正在翻譯…", appliedLength: continuation ? previous.appliedLength : 0 };
+    renderLines(liveCaption.translation, text, liveCaption.stage, liveCaption.status);
+    scheduleLiveTranslation();
+  }
+
+  function scheduleLiveTranslation(delay = 80) {
+    if (liveTranslateTimer || liveGoogleRequests >= 2 || !liveCaption || liveCaption.requested) return;
+    // Coalesce rapid word additions without restarting the timer indefinitely.
     liveTranslateTimer = setTimeout(async () => {
-      if (!isCurrentLiveCaption(snapshot)) return;
+      liveTranslateTimer = null;
+      const snapshot = liveCaption;
+      if (!snapshot || !isCurrentLiveCaption(snapshot)) return;
       snapshot.requested = true;
+      liveGoogleRequests++;
       try {
-        await BrancyUtils.translateProgressively({ action: "TRANSLATE_TEXTS", texts: [text] }, {
+        await BrancyUtils.translateProgressively({ action: "TRANSLATE_TEXTS", youtubeSubtitle: true, texts: [snapshot.text] }, {
           isCurrent: () => isCurrentLiveCaption(snapshot),
+          priority: () => 0,
           onUpdate: response => {
-            snapshot.translation = response?.success && typeof response.data?.[0] === "string" ? response.data[0] : "";
-            snapshot.stage = response?.stages?.[0] || "google";
-            snapshot.status = response?.statuses?.[0] || "";
-            if (!videoEl.paused) renderLines(snapshot.translation, text, snapshot.stage, snapshot.status);
+            const current = liveCaption;
+            // A prefix is still part of the currently displayed utterance, but
+            // an older prefix must never replace a more complete translation.
+            if (!isCurrentLiveCaption(snapshot) || snapshot.text.length < current.appliedLength) return;
+            if (current.stage === "openrouter" && current.appliedLength === snapshot.text.length && response?.stages?.[0] !== "openrouter") return;
+            const translated = response?.success && typeof response.data?.[0] === "string" ? response.data[0] : "";
+            snapshot.failed = !translated || translated === snapshot.text;
+            if (!snapshot.failed) {
+              current.translation = translated;
+              current.appliedLength = snapshot.text.length;
+              current.stage = response.stages?.[0] || "google";
+              current.status = current.appliedLength < current.text.length ? "正在翻譯…" : response.statuses?.[0] || "";
+            } else if (!current.translation) {
+              current.status = response?.error || "翻譯暫時無回應";
+            }
+            renderLines(current.translation, current.text, current.stage, current.status);
           }
         });
-      } catch { /* Keep the original caption when translation is unavailable. */ }
-    }, 80);
+      } catch (error) {
+        snapshot.failed = true;
+        if (isCurrentLiveCaption(snapshot) && !liveCaption.translation) {
+          liveCaption.status = error.message;
+          renderLines("", liveCaption.text, "google", error.message);
+        }
+      } finally {
+        liveGoogleRequests--;
+        const retry = snapshot === liveCaption && snapshot.failed && snapshot.retries < 1;
+        if (retry) { snapshot.retries++; snapshot.requested = false; }
+        if (liveCaption && !liveCaption.requested && !videoEl?.paused) scheduleLiveTranslation(retry ? 700 : 80);
+      }
+    }, delay);
   }
 
   function isCurrentLiveCaption(snapshot) {
-    return snapshot === liveCaption && snapshot.revision === liveRevision &&
+    return liveCaption && snapshot.revision === liveRevision &&
       snapshot.video === videoEl && snapshot.videoId === getVideoId() &&
       snapshot.videoId === lastVideoId && !cues.length && !videoEl.seeking &&
-      isSubtitleVisible && nativeCaptionText() === snapshot.text;
+      isSubtitleVisible && nativeCaptionText() === liveCaption.text && liveCaption.text.startsWith(snapshot.text);
   }
 
   function ensureSubtitleContainer() {
@@ -261,7 +326,7 @@
     }
 
     if (box) {
-      box.classList.toggle("ot-origin-first", settings.youtubePrimaryOrder === "origin_first");
+      box.classList.add("ot-origin-first");
     }
 
     subtitleContainer.style.display = isSubtitleVisible ? "flex" : "none";
@@ -281,7 +346,8 @@
 
   function updateSubtitleDisplay() {
     const cue = cues[currentCueIndex];
-    renderLines(cue?.translation || "", cue?.text || "", cue?.translationStage, cue?.translationStatus);
+    renderLines(cue?.translation || "", cue?.text || "", cue?.translationStage,
+      cue?.translationState === "error" ? "翻譯錯誤：" + (cue.translationStatus || "未取得譯文") : cue?.translationStatus);
   }
 
   function renderLines(translation, original, stage = "google", status = "") {
@@ -289,16 +355,18 @@
     const box = subtitleContainer.querySelector(".ot-sub-box");
     const targetLine = subtitleContainer.querySelector(".ot-target-line");
     const originLine = subtitleContainer.querySelector(".ot-origin-line");
-    const trans = BrancyUtils.stripMusicLabels(translation), orig = BrancyUtils.stripMusicLabels(original);
+    const trans = BrancyUtils.stripSubtitleAnnotations(translation), orig = BrancyUtils.stripSubtitleAnnotations(original);
     const normalize = text => text.replace(/\s+/g, "").toLowerCase();
     const target = normalize(trans) !== normalize(orig) ? trans : "";
     // Avoid retriggering our observer for an unchanged subtitle.
     if (targetLine.textContent !== target) targetLine.textContent = target;
     if (originLine.textContent !== orig) originLine.textContent = orig;
     targetLine.style.display = target ? "" : "none";
-    box.classList.toggle("visible", Boolean(orig));
+    box.classList.toggle("visible", Boolean(orig || (!cues.length && captionLoadStatus)));
     const label = subtitleContainer.querySelector(".ot-sub-stage");
-    const stageText = target ? BrancyUtils.translationStageLabel(stage) + (status ? " · 補譯未完成" : "") : "";
+    const stageText = target ? [BrancyUtils.translationStageLabel(stage), status === "正在翻譯…" ? status : status ? "補譯未完成" : ""].filter(Boolean).join(" · ")
+      : orig ? (status ? (status === "正在翻譯…" || status.startsWith("翻譯錯誤") ? status : "翻譯錯誤：" + status) : "正在翻譯…")
+      : !cues.length ? captionLoadStatus : "";
     if (label.textContent !== stageText) label.textContent = stageText;
     label.title = status;
     label.style.display = stageText ? "" : "none";

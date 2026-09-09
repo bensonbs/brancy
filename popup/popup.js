@@ -15,7 +15,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     function updateHint() {
       $("ot-current-model").textContent = settings.openRouterKey?.trim()
         ? "Google 先暫譯 → OpenRouter 自動補譯"
-        : "Google 暫譯 · 設定 OpenRouter 後自動補譯";
+        : "";
+      $("ot-current-model").hidden = !settings.openRouterKey?.trim();
     }
     updateHint();
     for (const [id, key, checkbox] of [

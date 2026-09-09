@@ -8,13 +8,13 @@ import { callOpenRouter } from "./openrouter.js";
 /**
  * Free Google Translate Web Endpoint (client=dict-chrome-ex / gtx)
  */
-export async function translateSingleGoogleFree(text, targetLang = "zh-TW") {
+export async function translateSingleGoogleFree(text, targetLang = "zh-TW", { skipPrimary = false } = {}) {
   if (!text || !text.trim()) return "";
   
   const gTarget = targetLang === "zh-TW" ? "zh-TW" : targetLang === "zh-CN" ? "zh-CN" : targetLang;
 
   // 1. Try clients5 POST (fast, dedicated Chrome extension endpoint)
-  try {
+  if (!skipPrimary) try {
     const params = new URLSearchParams({
       sl: "auto",
       tl: gTarget,
@@ -23,7 +23,8 @@ export async function translateSingleGoogleFree(text, targetLang = "zh-TW") {
     const res = await fetch("https://clients5.google.com/translate_a/t?client=dict-chrome-ex", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params
+      body: params,
+      signal: AbortSignal.timeout(4500)
     });
     if (res.ok) {
       const data = await res.json();
@@ -39,7 +40,7 @@ export async function translateSingleGoogleFree(text, targetLang = "zh-TW") {
 
   // 2. Fallback to translate.googleapis.com client=gtx
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(gTarget)}&dt=t&q=${encodeURIComponent(text)}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(4500) });
   if (!res.ok) {
     throw new Error(`Google Translate 失敗: HTTP ${res.status}`);
   }
@@ -78,7 +79,8 @@ export async function translateBatchGoogleFree(texts, targetLang = "zh-TW") {
       const res = await fetch("https://clients5.google.com/translate_a/t?client=dict-chrome-ex", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params
+        body: params,
+      signal: AbortSignal.timeout(4500)
       });
 
       if (res.ok) {
@@ -105,7 +107,7 @@ export async function translateBatchGoogleFree(texts, targetLang = "zh-TW") {
         continue;
       }
       try {
-        const trans = await translateSingleGoogleFree(txt, gTarget);
+        const trans = await translateSingleGoogleFree(txt, gTarget, { skipPrimary: true });
         results.push(trans || txt);
       } catch (singleErr) {
         console.warn("[Brancy] Single fallback error for text:", txt, singleErr);

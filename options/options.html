@@ -105,15 +105,14 @@
       <section id="section-youtube" class="ot-section">
         <div class="ot-section-header">
           <h2>字幕外觀</h2>
-          <p>自訂影片內雙語字幕的字級、顏色、順序與背景風格。</p>
+          <p>影片原語在上、繁體中文在下，不改動 YouTube CC 語言。可自訂字級、顏色與背景。</p>
         </div>
 
         <div class="ot-card">
           <div class="ot-field">
             <label class="ot-label" for="opt-sub-order">字幕排列順序</label>
-            <select id="opt-sub-order" class="ot-input">
-              <option value="target_first">目標翻譯在上，原始語言在下 (推薦)</option>
-              <option value="origin_first">原始語言在上，目標翻譯在下</option>
+            <select id="opt-sub-order" class="ot-input" disabled>
+              <option value="origin_first">原始語言在上，繁體中文在下</option>
             </select>
           </div>
 

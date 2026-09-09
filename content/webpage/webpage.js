@@ -317,6 +317,7 @@
     block.innerHTML = `<div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div><div class="brancy-translation-status" role="status"></div>`;
     const label = block.querySelector(".brancy-translation-status");
     label.textContent = BrancyUtils.translationStageLabel(stage) + (status ? " · 補譯未完成" : "");
+    label.style.display = label.textContent ? "" : "none";
     label.title = status;
     block.dataset.translationStage = stage;
   }

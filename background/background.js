@@ -49,7 +49,9 @@ function getSettings() {
 // Message Dispatcher
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handleAsync = async () => {
-    const settings = await getSettings();
+    const storedSettings = await getSettings();
+    const settings = message.youtubeSubtitle === true || message.action === "TRANSLATE_SUBTITLES"
+      ? { ...storedSettings, targetLang: "zh-TW" } : storedSettings;
 
     switch (message.action) {
       case "GET_SETTINGS":

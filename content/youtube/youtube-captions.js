@@ -11,6 +11,7 @@ class YouTubeCaptionManager {
     this.currentTracks = null;
     this.cues = [];
     this.isLoading = false;
+    this.statusTimer = null;
     this.loadRevision = 0;
     this.translationRevision = 0;
     this.translationTask = null;
@@ -32,6 +33,7 @@ class YouTubeCaptionManager {
       if (!this.isTranslationCurrent(task)) return;
       // Restart at the current playhead so later windows cannot mix languages
       // or keep a completed marker for requests canceled by a settings change.
+      clearTimeout(task.retryTimer);
       this.cues = [];
       this.translationTask = null;
       this.processAndTranslateCues(task.sourceCues, task.videoId, task.revision);
@@ -41,10 +43,18 @@ class YouTubeCaptionManager {
 
       if (event.data.action === "CAPTION_TRACKS_FOUND") {
         this.handleTracksFound(event.data.tracks, event.data.videoId);
+      } else if (event.data.action === "CAPTION_SOURCE_PENDING" && event.data.videoId === this.getVideoId() && !this.cues.length) {
+        window.dispatchEvent(new CustomEvent("brancy:source-pending", { detail: { videoId: this.getVideoId() } }));
+      } else if (event.data.action === "CAPTION_LOAD_FAILED" && event.data.videoId === this.getVideoId() && !this.cues.length) {
+        this.reportStatus("字幕載入失敗：YouTube 未提供字幕文字，請檢查 CC 字幕或重新整理");
       } else if (event.data.action === "NATIVE_TIMEDTEXT_CAPTURED") {
         this.handleNativeTimedText(event.data.rawText, event.data.videoId);
       }
     });
+  }
+
+  reportStatus(status) {
+    window.dispatchEvent(new CustomEvent("brancy:caption-status", { detail: { videoId: this.getVideoId(), status } }));
   }
 
   getVideoId() {
@@ -54,12 +64,14 @@ class YouTubeCaptionManager {
 
   resetForVideo(videoId) {
     if (this.currentVideoId === videoId) return;
+    clearTimeout(this.statusTimer);
     this.currentVideoId = videoId;
     this.currentTracks = null;
     this.cues = [];
     this.isLoading = false;
     this.loadRevision++;
     this.translationRevision++;
+    clearTimeout(this.translationTask?.retryTimer);
     this.translationTask = null;
   }
 
@@ -105,6 +117,13 @@ class YouTubeCaptionManager {
     this.resetForVideo(videoId);
     const revision = this.loadRevision;
     this.isLoading = true;
+    this.reportStatus("正在載入字幕…");
+    this.statusTimer = setTimeout(() => {
+      if (this.isCurrent(videoId, revision) && !this.cues.length) {
+        this.isLoading = false;
+        this.reportStatus("字幕載入逾時：請確認 YouTube CC 能正常顯示");
+      }
+    }, 15000);
 
     // 1. Request tracks & trigger player
     window.postMessage({
@@ -127,6 +146,8 @@ class YouTubeCaptionManager {
     if (!tracks || tracks.length === 0) {
       console.warn("[Brancy] No caption tracks found for video:", videoId);
       this.isLoading = false;
+      clearTimeout(this.statusTimer);
+      this.reportStatus("找不到可用字幕：請確認影片提供 CC 字幕");
       window.dispatchEvent(new CustomEvent("brancy:no-captions", { detail: { videoId } }));
       return null;
     }
@@ -166,16 +187,18 @@ class YouTubeCaptionManager {
 
   async processAndTranslateCues(rawCues, videoId, revision) {
     if (!this.isCurrent(videoId, revision) || this.cues.length) return;
+    clearTimeout(this.statusTimer);
+    this.reportStatus("");
     const translationRevision = ++this.translationRevision;
     // Keep the source clock intact. Combining adjacent cues displays future words
     // early, and waiting for translation leaves the renderer on delayed live text.
-    const sourceCues = rawCues.map(cue => ({ ...cue, text: BrancyUtils.stripMusicLabels(cue.text) }))
+    const sourceCues = rawCues.map(cue => ({ ...cue, text: BrancyUtils.stripSubtitleAnnotations(cue.text) }))
       .filter(cue => cue.text && Number.isFinite(cue.start) && cue.end > cue.start)
       .sort((a, b) => a.start - b.start).map((cue, id) => ({ ...cue, id }));
     this.cues = sourceCues;
     const task = this.translationTask = {
       videoId, revision, translationRevision, sourceCues,
-      inFlight: new Set(), completed: new Set(), activeRequests: 0, started: false
+      inFlight: new Set(), completed: new Set(), attempts: new Map(), retryAfter: new Map(), retryTimer: null, activeRequests: 0, started: false
     };
     this.publishCues(task);
     window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
@@ -204,11 +227,12 @@ class YouTubeCaptionManager {
   pumpTranslationWindow() {
     const task = this.translationTask;
     if (!this.isTranslationCurrent(task)) return [];
+    clearTimeout(task.retryTimer);
     const time = this.playbackTime();
     // The current cue goes first, followed by at most 45 seconds of lookahead.
     // Keep a little overlap behind the playhead for short backward seeks.
     const candidates = task.sourceCues.filter(cue => cue.end > time - 3 && cue.start <= time + 45 &&
-      !task.completed.has(cue.id) && !task.inFlight.has(cue.id))
+      !task.completed.has(cue.id) && !task.inFlight.has(cue.id) && (task.retryAfter.get(cue.id) || 0) <= Date.now())
       .sort((a, b) => {
         const rank = cue => cue.end > time ? Math.max(0, cue.start - time) : 1000 + time - cue.end;
         return rank(a) - rank(b) || a.id - b.id;
@@ -221,8 +245,14 @@ class YouTubeCaptionManager {
       if (!batch.length) break;
       task.started = true;
       task.activeRequests++;
-      batch.forEach(cue => task.inFlight.add(cue.id));
+      batch.forEach(cue => { task.inFlight.add(cue.id); task.attempts.set(cue.id, (task.attempts.get(cue.id) || 0) + 1); });
       requests.push(this.translateCueBatch(task, batch));
+    }
+    const retries = task.sourceCues.filter(cue => cue.end > time - 3 && cue.start <= time + 45 &&
+      !task.completed.has(cue.id) && !task.inFlight.has(cue.id) && task.retryAfter.has(cue.id));
+    if (task.activeRequests < 2 && retries.length) {
+      const delay = Math.max(0, Math.min(...retries.map(cue => task.retryAfter.get(cue.id))) - Date.now());
+      task.retryTimer = setTimeout(() => { if (this.isTranslationCurrent(task)) this.pumpTranslationWindow(); }, delay);
     }
     return requests;
   }
@@ -239,24 +269,38 @@ class YouTubeCaptionManager {
             batch.forEach((cue, i) => {
               // Merge only this batch. A late OpenRouter result for another
               // batch must never erase translations or change source timecodes.
+              const translation = BrancyUtils.stripSubtitleAnnotations(response.data[i]?.translation);
+              if (translation && translation !== cue.text) task.completed.add(cue.id);
+              // A Google retry cannot replace a completed OpenRouter refinement.
+              if (updated[cue.id]?.translationStage === "openrouter" && response.stages?.[i] !== "openrouter") return;
               updated[cue.id] = { ...cue,
-                translation: BrancyUtils.stripMusicLabels(response.data[i]?.translation),
+                translation,
                 translationStage: response.stages?.[i] || "google",
-                translationStatus: response.statuses?.[i] || ""
+                translationStatus: response.statuses?.[i] || "",
+                translationState: response.data[i]?.translation?.trim() && response.data[i].translation.trim() !== cue.text.trim() ? "done" : "error"
               };
             });
             this.cues = updated;
+          } else {
+            batch.forEach(cue => { this.cues[cue.id] = { ...this.cues[cue.id], translationState: "error", translationStatus: response?.error || "翻譯服務未回傳結果" }; });
           }
           this.publishCues(task);
         }
       });
     } catch (error) {
       if (this.isTranslationCurrent(task)) {
+        batch.forEach(cue => { this.cues[cue.id] = { ...this.cues[cue.id], translationState: "error", translationStatus: error.message || "翻譯失敗" }; });
+        this.publishCues(task);
         console.warn("[Brancy] Translation unavailable; keeping timed original captions:", error);
       }
     } finally {
       task.activeRequests--;
-      batch.forEach(cue => { task.inFlight.delete(cue.id); task.completed.add(cue.id); });
+      batch.forEach(cue => {
+        task.inFlight.delete(cue.id);
+        if (task.completed.has(cue.id)) return;
+        if (task.attempts.get(cue.id) < 2) task.retryAfter.set(cue.id, Date.now() + 1000);
+        else task.completed.add(cue.id);
+      });
       if (this.isTranslationCurrent(task)) {
         this.isLoading = false;
         this.pumpTranslationWindow();
@@ -294,7 +338,7 @@ class YouTubeCaptionManager {
 
   async fallbackFetchTracksFromHtml(videoId) {
     try {
-      const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+      const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, { signal: AbortSignal.timeout(12000) });
       const html = await res.text();
       const match = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/s);
       if (match && match[1]) {
@@ -311,26 +355,15 @@ class YouTubeCaptionManager {
   }
 
   selectBestTrack(tracks) {
-    // 1. Manual English or original track
-    const manualEn = tracks.find(t => t.languageCode === "en" && t.kind !== "asr");
-    if (manualEn) return manualEn;
-
-    // 2. Auto-generated English
-    const autoEn = tracks.find(t => t.languageCode === "en");
-    if (autoEn) return autoEn;
-
-    // 3. Any manual track
-    const anyManual = tracks.find(t => t.kind !== "asr");
-    if (anyManual) return anyManual;
-
-    // 4. Default to first track
-    return tracks[0];
+    // Read original-language captions independently; leave player CC selection alone.
+    return tracks.find(t => t.original && t.kind === "asr") || tracks.find(t => t.original) || tracks.find(t => t.isDefault || t.is_default) ||
+      tracks.find(t => t.kind !== "asr") || tracks[0];
   }
 
   async fetchTimedText(baseUrl) {
     const url = baseUrl.includes("fmt=json3") ? baseUrl : `${baseUrl}&fmt=json3`;
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
       if (res.ok) {
         const text = await res.text();
         if (text && text.trim().length > 0) {
