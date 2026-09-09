@@ -92,3 +92,32 @@ test('en-US audio maps to an available en caption track', async () => {
   assert.equal(f.fetched.length,1);
   assert.equal(f.selected.length,0);
 });
+
+for (const nativeKind of ['asr', 'manual']) {
+  test(`authored original captions take priority over native ${nativeKind} without changing CC`, async () => {
+    const f = fixture(true, {videoDetails:{videoId:'korean'}, captions:{playerCaptionsTracklistRenderer:{
+      audioTracks:[{audioTrackId:'ja.4',captionTrackIndices:[0,1]}], defaultAudioTrackIndex:0,
+      captionTracks:[
+        {languageCode:'ja',kind:'asr',baseUrl:'https://www.youtube.com/api/timedtext?v=korean&lang=ja&kind=asr'},
+        {languageCode:'ja',baseUrl:'https://www.youtube.com/api/timedtext?v=korean&lang=ja'}]
+    }}});
+    await f.window.fetch('https://www.youtube.com/api/timedtext?v=korean&lang=ja' + (nativeKind==='asr'?'&kind=asr':''));
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(f.fetched.length, nativeKind==='asr'?2:1);
+    assert.equal(new URL(f.fetched.at(-1)).searchParams.has('kind'), false);
+    assert.equal(f.messages.filter(m=>m.action==='NATIVE_TIMEDTEXT_CAPTURED').length,1);
+    assert.equal(f.selected.length,0);
+  });
+}
+
+test('ASR remains usable when no authored original track exists', async () => {
+  const f = fixture(true, {videoDetails:{videoId:'korean'}, captions:{playerCaptionsTracklistRenderer:{
+    audioTracks:[{audioTrackId:'ja.4',captionTrackIndices:[0]}], defaultAudioTrackIndex:0,
+    captionTracks:[{languageCode:'ja',kind:'asr',baseUrl:'https://www.youtube.com/api/timedtext?v=korean&lang=ja&kind=asr'}]
+  }}});
+  await f.window.fetch('https://www.youtube.com/api/timedtext?v=korean&lang=ja&kind=asr');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(f.fetched.length,1);
+  assert.equal(f.messages.filter(m=>m.action==='NATIVE_TIMEDTEXT_CAPTURED').length,1);
+  assert.equal(f.selected.length,0);
+});

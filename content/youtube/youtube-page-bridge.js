@@ -89,7 +89,10 @@
       window.postMessage({ source: "BRANCY_PAGE_BRIDGE", action: "NATIVE_TIMEDTEXT_CAPTURED",
         rawText: text, videoId, languageCode: lang }, "*");
     };
-    if (!data?.originalLanguage || (language === data.originalLanguage && !captured.searchParams.has("tlang"))) {
+    const manualOriginal = data?.tracks.find(track => track.original && track.kind !== "asr");
+    const capturedIsPreferred = language === data?.originalLanguage && !captured.searchParams.has("tlang") &&
+      (!manualOriginal || captured.searchParams.get("kind") !== "asr");
+    if (!data?.originalLanguage || capturedIsPreferred) {
       publish(rawText, language);
       return;
     }
@@ -99,7 +102,7 @@
     if (originalRequests.has(key)) return;
     originalRequests.add(key);
     window.postMessage({ source: "BRANCY_PAGE_BRIDGE", action: "CAPTION_SOURCE_PENDING", videoId }, "*");
-    for (const track of data.tracks.filter(t => t.original).sort((a, b) => Number(b.kind === "asr") - Number(a.kind === "asr"))) {
+    for (const track of data.tracks.filter(t => t.original).sort((a, b) => Number(a.kind === "asr") - Number(b.kind === "asr"))) {
       try {
         const source = new URL(track.baseUrl);
         if (source.origin !== location.origin || source.pathname !== "/api/timedtext") continue;

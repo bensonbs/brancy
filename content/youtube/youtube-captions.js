@@ -355,8 +355,9 @@ class YouTubeCaptionManager {
   }
 
   selectBestTrack(tracks) {
-    // Read original-language captions independently; leave player CC selection alone.
-    return tracks.find(t => t.original && t.kind === "asr") || tracks.find(t => t.original) || tracks.find(t => t.isDefault || t.is_default) ||
+    // Prefer authored original captions: ASR can collapse a long speech into a
+    // three-second cue. Read independently and leave player CC selection alone.
+    return tracks.find(t => t.original && t.kind !== "asr") || tracks.find(t => t.original) || tracks.find(t => t.isDefault || t.is_default) ||
       tracks.find(t => t.kind !== "asr") || tracks[0];
   }
 
