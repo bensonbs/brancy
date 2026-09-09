@@ -153,8 +153,8 @@
   }
 
   function nativeCaptionText() {
-    return Array.from(observedPlayer?.querySelectorAll(".ytp-caption-segment") || [])
-      .map(segment => segment.textContent || "").join(" ").replace(/\s+/g, " ").trim();
+    return BrancyUtils.stripMusicLabels(Array.from(observedPlayer?.querySelectorAll(".ytp-caption-segment") || [])
+      .map(segment => segment.textContent || "").join(" "));
   }
 
   function setupLiveCaptionObserver() {
@@ -287,7 +287,7 @@
     const box = subtitleContainer.querySelector(".ot-sub-box");
     const targetLine = subtitleContainer.querySelector(".ot-target-line");
     const originLine = subtitleContainer.querySelector(".ot-origin-line");
-    const trans = translation.trim(), orig = original.trim();
+    const trans = BrancyUtils.stripMusicLabels(translation), orig = BrancyUtils.stripMusicLabels(original);
     const normalize = text => text.replace(/\s+/g, "").toLowerCase();
     const target = normalize(trans) !== normalize(orig) ? trans : "";
     // Avoid retriggering our observer for an unchanged subtitle.

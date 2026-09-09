@@ -123,3 +123,46 @@ test('subtitle cache cannot replace a current track with stale text or timestamp
     assert.deepEqual(result, [{ text: 'Hello', start: 1, end: 2, translation: '你好' }]);
   } finally { globalThis.chrome = previousChrome; }
 });
+
+test('overlapping subtitle windows reuse individual cues and keep source metadata', async () => {
+  const previousChrome = globalThis.chrome;
+  const stored = {};
+  globalThis.chrome = { storage: { local: {
+    get(keys, callback) { callback(Object.fromEntries(keys.map(key => [key, stored[key]]))); },
+    set(entries, callback) { Object.assign(stored, entries); callback(); }
+  } } };
+  const requests = [];
+  globalThis.fetch = async (_, options) => {
+    const texts = options.body.getAll('q'); requests.push(texts);
+    return { ok: true, json: async () => texts.map(text => [`譯 ${text}`, 'en']) };
+  };
+  const cues = Array.from({ length: 3 }, (_, i) => ({ id: i, text: `Cue ${i}`, start: i * 3, end: i * 3 + 3 }));
+  try {
+    await translateSubtitleCues(cues.slice(0, 2), {}, 'video');
+    const second = await translateSubtitleCues(cues.slice(1).map(cue => ({ ...cue, id: cue.id + 10 })), {}, 'video');
+    assert.deepEqual(requests, [['Cue 0', 'Cue 1'], ['Cue 2']]);
+    assert.equal(second[0].id, 11);
+    assert.equal(second[0].translation, '譯 Cue 1');
+    await translateSubtitleCues(cues.slice(0, 1), { targetLang: 'ja' }, 'video');
+    await translateSubtitleCues([{ ...cues[0], start: 99, end: 100 }], {}, 'video');
+    assert.equal(requests.length, 4, 'language and source clock changes bypass old cache');
+    assert.equal(Object.keys(stored).length, 5);
+  } finally { globalThis.chrome = previousChrome; }
+});
+
+test('concurrent subtitle batches cannot overwrite each other in the cache', async () => {
+  const previousChrome = globalThis.chrome;
+  const stored = {};
+  globalThis.chrome = { storage: { local: {
+    get(keys, callback) { callback(Object.fromEntries(keys.map(key => [key, stored[key]]))); },
+    set(entries, callback) { Object.assign(stored, entries); callback(); }
+  } } };
+  globalThis.fetch = async (_, options) => ({ ok: true, json: async () => options.body.getAll('q').map(text => [`譯 ${text}`, 'en']) });
+  const cues = [{ text: 'First', start: 0, end: 1 }, { text: 'Second', start: 1, end: 2 }];
+  try {
+    await Promise.all(cues.map(cue => translateSubtitleCues([cue], {}, 'video')));
+    globalThis.fetch = () => { throw new Error('cached cues should not call Google again'); };
+    assert.deepEqual((await translateSubtitleCues(cues, {}, 'video')).map(cue => cue.translation), ['譯 First', '譯 Second']);
+    assert.equal(Object.keys(stored).length, 2);
+  } finally { globalThis.chrome = previousChrome; }
+});

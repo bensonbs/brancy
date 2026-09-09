@@ -10,10 +10,29 @@ class YouTubeCaptionManager {
     this.isLoading = false;
     this.loadRevision = 0;
     this.translationRevision = 0;
+    this.translationTask = null;
     this.setupListeners();
   }
 
   setupListeners() {
+    // Capture media events because timeupdate/seeked do not bubble. Query the
+    // active player each time so replacing YouTube's <video> needs no rebinding.
+    for (const eventName of ["timeupdate", "seeking", "seeked", "play"]) {
+      document.addEventListener(eventName, event => {
+        if (event.target.matches?.("#movie_player video")) this.pumpTranslationWindow();
+      }, true);
+    }
+    window.addEventListener("yt-navigate-start", () => this.resetForVideo(null));
+    if (typeof chrome !== "undefined") chrome.storage?.onChanged?.addListener((changes, area) => {
+      if (area !== "local" || !["targetLang", "openRouterKey", "openRouterModel"].some(key => changes[key])) return;
+      const task = this.translationTask;
+      if (!this.isTranslationCurrent(task)) return;
+      // Restart at the current playhead so later windows cannot mix languages
+      // or keep a completed marker for requests canceled by a settings change.
+      this.cues = [];
+      this.translationTask = null;
+      this.processAndTranslateCues(task.sourceCues, task.videoId, task.revision);
+    });
     window.addEventListener("message", (event) => {
       if (event.source !== window || !event.data || event.data.source !== "BRANCY_PAGE_BRIDGE") return;
 
@@ -38,6 +57,7 @@ class YouTubeCaptionManager {
     this.isLoading = false;
     this.loadRevision++;
     this.translationRevision++;
+    this.translationTask = null;
   }
 
   isCurrent(videoId, revision) {
@@ -146,33 +166,99 @@ class YouTubeCaptionManager {
     const translationRevision = ++this.translationRevision;
     // Keep the source clock intact. Combining adjacent cues displays future words
     // early, and waiting for translation leaves the renderer on delayed live text.
-    const sourceCues = rawCues.filter(cue => Number.isFinite(cue.start) && cue.end > cue.start)
+    const sourceCues = rawCues.map(cue => ({ ...cue, text: BrancyUtils.stripMusicLabels(cue.text) }))
+      .filter(cue => cue.text && Number.isFinite(cue.start) && cue.end > cue.start)
       .sort((a, b) => a.start - b.start).map((cue, id) => ({ ...cue, id }));
     this.cues = sourceCues;
-    const publish = () => window.dispatchEvent(new CustomEvent("brancy:cues-ready", {
-      detail: { cues: this.cues, videoId }
-    }));
-    publish();
+    const task = this.translationTask = {
+      videoId, revision, translationRevision, sourceCues,
+      inFlight: new Set(), completed: new Set(), activeRequests: 0, started: false
+    };
+    this.publishCues(task);
     window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
+    // Only await the first small requests, never the entire subtitle track.
+    await Promise.all(this.pumpTranslationWindow());
+    if (this.isTranslationCurrent(task)) this.isLoading = false;
+  }
+
+  isTranslationCurrent(task) {
+    return task && task === this.translationTask && this.isCurrent(task.videoId, task.revision) &&
+      task.translationRevision === this.translationRevision;
+  }
+
+  playbackTime() {
+    const video = document.querySelector("#movie_player video.html5-main-video") || document.querySelector("#movie_player video");
+    return Number.isFinite(video?.currentTime) ? video.currentTime : 0;
+  }
+
+  publishCues(task) {
+    if (!this.isTranslationCurrent(task)) return;
+    window.dispatchEvent(new CustomEvent("brancy:cues-ready", {
+      detail: { cues: this.cues, videoId: task.videoId }
+    }));
+  }
+
+  pumpTranslationWindow() {
+    const task = this.translationTask;
+    if (!this.isTranslationCurrent(task)) return [];
+    const time = this.playbackTime();
+    // The current cue goes first, followed by at most 45 seconds of lookahead.
+    // Keep a little overlap behind the playhead for short backward seeks.
+    const candidates = task.sourceCues.filter(cue => cue.end > time - 3 && cue.start <= time + 45 &&
+      !task.completed.has(cue.id) && !task.inFlight.has(cue.id))
+      .sort((a, b) => {
+        const rank = cue => cue.end > time ? Math.max(0, cue.start - time) : 1000 + time - cue.end;
+        return rank(a) - rank(b) || a.id - b.id;
+      });
+    const requests = [];
+    // Four cues for the first visible result, then eight per Google request.
+    // Two small requests may run concurrently; seek events reorder pending work.
+    while (task.activeRequests < 2) {
+      const batch = candidates.splice(0, task.started ? 8 : 4);
+      if (!batch.length) break;
+      task.started = true;
+      task.activeRequests++;
+      batch.forEach(cue => task.inFlight.add(cue.id));
+      requests.push(this.translateCueBatch(task, batch));
+    }
+    return requests;
+  }
+
+  async translateCueBatch(task, batch) {
     try {
-      await BrancyUtils.translateProgressively({ action: "TRANSLATE_SUBTITLES", cues: sourceCues, videoId }, {
-        isCurrent: () => this.isCurrent(videoId, revision) && translationRevision === this.translationRevision,
+      await BrancyUtils.translateProgressively({ action: "TRANSLATE_SUBTITLES", cues: batch, videoId: task.videoId }, {
+        isCurrent: () => this.isTranslationCurrent(task),
+        priority: () => Math.min(...batch.map(cue => Math.abs(cue.start - this.playbackTime()))),
         onUpdate: response => {
-          if (response?.success && Array.isArray(response.data) && response.data.length === sourceCues.length) {
-            this.cues = sourceCues.map((cue, i) => ({ ...cue,
-              translation: typeof response.data[i]?.translation === "string" ? response.data[i].translation : "",
-              translationStage: response.stages?.[i] || "google",
-              translationStatus: response.statuses?.[i] || ""
-            }));
+          if (!this.isTranslationCurrent(task)) return;
+          if (response?.success && Array.isArray(response.data) && response.data.length === batch.length) {
+            const updated = [...this.cues];
+            batch.forEach((cue, i) => {
+              // Merge only this batch. A late OpenRouter result for another
+              // batch must never erase translations or change source timecodes.
+              updated[cue.id] = { ...cue,
+                translation: BrancyUtils.stripMusicLabels(response.data[i]?.translation),
+                translationStage: response.stages?.[i] || "google",
+                translationStatus: response.statuses?.[i] || ""
+              };
+            });
+            this.cues = updated;
           }
-          publish();
+          this.publishCues(task);
         }
       });
     } catch (error) {
-      if (!this.isCurrent(videoId, revision) || translationRevision !== this.translationRevision) return;
-      console.warn("[Brancy] Translation unavailable; keeping timed original captions:", error);
+      if (this.isTranslationCurrent(task)) {
+        console.warn("[Brancy] Translation unavailable; keeping timed original captions:", error);
+      }
+    } finally {
+      task.activeRequests--;
+      batch.forEach(cue => { task.inFlight.delete(cue.id); task.completed.add(cue.id); });
+      if (this.isTranslationCurrent(task)) {
+        this.isLoading = false;
+        this.pumpTranslationWindow();
+      }
     }
-    this.isLoading = false;
   }
 
   waitForTracks(timeoutMs, videoId) {

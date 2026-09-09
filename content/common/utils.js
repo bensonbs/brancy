@@ -122,6 +122,8 @@ if (typeof chrome !== "undefined") chrome.storage?.onChanged?.addListener((chang
 
 function drainRefinements() {
   while (runningRefinements < 2 && refinementQueue.length) {
+    // Re-evaluate priorities when a slot frees up (the video may have sought).
+    refinementQueue.sort((a, b) => a.priority() - b.priority());
     const job = refinementQueue.shift();
     if (!job.isCurrent()) { job.finish(); continue; }
     runningRefinements++;
@@ -129,7 +131,7 @@ function drainRefinements() {
   }
 }
 
-async function translateProgressively(message, { onUpdate, isCurrent = () => true }) {
+async function translateProgressively(message, { onUpdate, isCurrent = () => true, priority = () => Infinity }) {
   const settingsRevision = translationSettingsRevision;
   const current = () => settingsRevision === translationSettingsRevision && isCurrent();
   const response = await sendMessageToBackground(message);
@@ -161,7 +163,7 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
   pendingTranslations.add(cancel);
   const enqueue = indices => {
     pendingJobs++;
-    refinementQueue.push({ isCurrent: current,
+    refinementQueue.push({ isCurrent: current, priority,
       finish: () => { if (--pendingJobs === 0) pendingTranslations.delete(cancel); }, run: async () => {
     try {
       const refined = await sendMessageToBackground({ action: "REFINE_TEXTS", context: response.refinement,
@@ -198,6 +200,12 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
 
 function translationStageLabel(stage) {
   return stage === "openrouter" ? "OpenRouter" : stage === "pending" ? "Google 暫譯 · OpenRouter 補譯中…" : "Google 暫譯";
+}
+
+// Remove only bracketed music labels, preserving speech and other annotations.
+function stripMusicLabels(text) {
+  return String(text || "").replace(/\[\s*(?:music|音樂|音乐|音楽)\s*\]|【\s*(?:music|音樂|音乐|音楽)\s*】|［\s*(?:music|音樂|音乐|音楽)\s*］|\(\s*(?:music|音樂|音乐|音楽)\s*\)|（\s*(?:music|音樂|音乐|音楽)\s*）/gi, " ")
+    .replace(/\s+/g, " ").trim();
 }
 
 function formatTime(seconds) {
@@ -261,6 +269,7 @@ if (typeof window !== "undefined") {
     sendMessageToBackground,
     translateProgressively,
     translationStageLabel,
+    stripMusicLabels,
     formatTime,
     escapeHtml,
     debounce,

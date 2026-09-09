@@ -18,6 +18,7 @@ async function fixture() {
     window.requests = [];
     window.settings = { youtubeSubtitleEnabled: true, shortcutsEnabled: true };
     window.BrancyUtils = {
+      stripMusicLabels(text) { return text || ""; },
       translationStageLabel(stage) { return stage === 'openrouter' ? 'OpenRouter' : 'Google 暫譯'; },
       async translateProgressively(message, { onUpdate, isCurrent = () => true }) {
         const response = await this.sendMessageToBackground(message);

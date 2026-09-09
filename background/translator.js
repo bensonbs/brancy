@@ -125,17 +125,31 @@ export async function translateWebTexts(texts, settings) {
 export async function translateSubtitleCues(cues, settings, videoId) {
   if (!cues?.length) return [];
   const targetLang = settings.targetLang || "zh-TW";
-  const cacheKey = `sub_${videoId}_${targetLang}_google_free_`;
-  const cached = await getFromStorage(cacheKey);
-  if (Array.isArray(cached) && cached.length === cues.length && cached.some(cue => cue.translation && cue.translation !== cue.text) && cached.every((cue, i) =>
-    cue.text === cues[i].text && cue.start === cues[i].start && cue.end === cues[i].end)) {
-    return cues.map((cue, i) => ({ ...cue, translation: cached[i].translation || "" }));
-  }
-  const translations = await translateWebTexts(cues.map(cue => cue.text), settings);
-  const translated = cues.map((cue, i) => ({ ...cue, translation: translations[i] || "" }));
-  if (videoId && translated.some(cue => cue.translation && cue.translation !== cue.text)) {
-    await saveToStorage(cacheKey, translated);
-  }
+  // Cache individual cues so overlapping playback windows reuse translations
+  // and concurrent batches never overwrite one shared video-sized cache entry.
+  const keys = videoId ? await Promise.all(cues.map(async cue => {
+    const bytes = new TextEncoder().encode(JSON.stringify([cue.start, cue.end, cue.text]));
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+    return `sub_${videoId}_${targetLang}_google_v2_${hash}`;
+  })) : [];
+  const legacyKey = `sub_${videoId}_${targetLang}_google_free_`;
+  const cached = videoId ? await getFromStorage([legacyKey, ...keys]) : {};
+  const legacy = Array.isArray(cached[legacyKey]) ? cached[legacyKey] : [];
+  const validCache = (entry, cue) => entry?.text === cue.text && entry.start === cue.start && entry.end === cue.end &&
+    typeof entry.translation === "string" && entry.translation.trim() && entry.translation !== cue.text;
+  const translated = cues.map((cue, i) => {
+    const entry = validCache(cached[keys[i]], cue) ? cached[keys[i]] : legacy.find(entry => validCache(entry, cue));
+    return { ...cue, translation: entry?.translation || "" };
+  });
+  const missing = translated.map((cue, i) => cue.translation ? -1 : i).filter(i => i !== -1);
+  const translations = await translateWebTexts(missing.map(i => cues[i].text), settings);
+  missing.forEach((index, i) => { translated[index].translation = translations[i] || ""; });
+  const entries = {};
+  if (videoId) missing.forEach(index => {
+    if (validCache(translated[index], cues[index])) entries[keys[index]] = translated[index];
+  });
+  if (Object.keys(entries).length) await saveToStorage(entries);
   return translated;
 }
 
@@ -222,24 +236,24 @@ export async function lookupWordDetails(word, settings) {
 }
 
 // Storage helpers for caching
-function getFromStorage(key) {
+function getFromStorage(keys) {
   return new Promise(resolve => {
     if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
-      resolve(null);
+      resolve({});
       return;
     }
-    chrome.storage.local.get([key], res => {
-      resolve(res ? res[key] : null);
+    chrome.storage.local.get(keys, res => {
+      resolve(res || {});
     });
   });
 }
 
-function saveToStorage(key, value) {
+function saveToStorage(entries) {
   return new Promise(resolve => {
     if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
       resolve();
       return;
     }
-    chrome.storage.local.set({ [key]: value }, () => resolve());
+    chrome.storage.local.set(entries, () => resolve());
   });
 }
