@@ -1,6 +1,36 @@
-# Brancy
+<p align="center">
+  <img src="icons/icon128.png" alt="Brancy Logo" width="88" height="88">
+</p>
+
+<h1 align="center">Brancy</h1>
+
+<p align="center">讀懂，更多。讓語言簡單一點。</p>
+
+<p align="center">
+  <a href="https://github.com/bensonbs/brancy/releases/latest">下載最新版</a> ·
+  <a href="#使用方式">安裝教學</a> ·
+  <a href="#範例展示">範例展示</a>
+</p>
+
+![Brancy 黑白灰極簡面板，支援 Google 免金鑰翻譯與 OpenRouter 自動補譯](docs/images/overview.png)
 
 黑白灰極簡風格的 Chrome 雙語翻譯擴充功能。原生 JavaScript、無前端框架、無須編譯。
+
+## 範例展示
+
+### Google 先暫譯，OpenRouter 自動補譯
+
+左側先顯示 Google 暫譯，右側呈現 OpenRouter 補譯完成後的同一段內容。有設定 OpenRouter 就會自動執行第二次翻譯，無須額外點擊。
+
+![同一篇示範文章：左側為 Google 暫譯與補譯中提示，右側已更新為 OpenRouter 譯文](docs/images/translation-stages.png)
+
+### YouTube 字幕與評論
+
+字幕依影片時間同步；右鍵翻譯評論後，譯文顯示在每則原文下方，保留閱讀脈絡。
+
+![YouTube 示範：影片顯示雙語字幕，右側評論在原文下方顯示 OpenRouter 譯文](docs/images/youtube-demo.png)
+
+展示圖片由實際擴充功能介面渲染；文章、影片場景、評論與翻譯使用示範資料，並非真實 API 翻譯結果。
 
 ## 使用方式
 
@@ -39,3 +69,5 @@ OpenRouter 使用串流回應，每次請求最多等待 60 秒，每批最多 8
 主要檔案：`popup/` 工具列面板、`options/` 設定頁、`styles/base.css` 共用樣式、`background/page-translation.js` 右鍵選單、`background/translator.js` 翻譯服務、`content/webpage/` 網頁雙語與劃詞、`content/youtube/` 影片字幕。
 
 右鍵選單與動態載入依照 [Chrome contextMenus API](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) 與 [scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)；翻譯串接參考 [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) 與 [串流協定](https://openrouter.ai/docs/api_reference/streaming)。
+
+展示圖片位於 `docs/images/`，沿用 `icons/icon128.png` 的現有 Logo。安裝開發依賴後，可執行 `node scripts/generate-showcase.mjs` 重新產生圖片。
