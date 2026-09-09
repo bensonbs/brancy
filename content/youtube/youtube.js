@@ -178,7 +178,7 @@
       return;
     }
     if (liveCaption?.text === text) {
-      if (liveCaption.translation) renderLines(liveCaption.translation, text);
+      if (liveCaption.translation) renderLines(liveCaption.translation, text, liveCaption.stage, liveCaption.status);
       return;
     }
     invalidateLiveCaption();
@@ -189,10 +189,15 @@
       if (!isCurrentLiveCaption(snapshot)) return;
       snapshot.requested = true;
       try {
-        const response = await BrancyUtils.sendMessageToBackground({ action: "TRANSLATE_TEXTS", texts: [text] });
-        if (!isCurrentLiveCaption(snapshot)) return;
-        snapshot.translation = response?.success && typeof response.data?.[0] === "string" ? response.data[0] : "";
-        if (!videoEl.paused) renderLines(snapshot.translation, text);
+        await BrancyUtils.translateProgressively({ action: "TRANSLATE_TEXTS", texts: [text] }, {
+          isCurrent: () => isCurrentLiveCaption(snapshot),
+          onUpdate: response => {
+            snapshot.translation = response?.success && typeof response.data?.[0] === "string" ? response.data[0] : "";
+            snapshot.stage = response?.stages?.[0] || "google";
+            snapshot.status = response?.statuses?.[0] || "";
+            if (!videoEl.paused) renderLines(snapshot.translation, text, snapshot.stage, snapshot.status);
+          }
+        });
       } catch { /* Keep the original caption when translation is unavailable. */ }
     }, 80);
   }
@@ -218,6 +223,7 @@
         <div class="ot-sub-box">
           <div class="ot-sub-line ot-target-line"></div>
           <div class="ot-sub-line ot-origin-line"></div>
+          <div class="ot-sub-stage"></div>
         </div>
       `;
       player.appendChild(subtitleContainer);
@@ -273,10 +279,10 @@
 
   function updateSubtitleDisplay() {
     const cue = cues[currentCueIndex];
-    renderLines(cue?.translation || "", cue?.text || "");
+    renderLines(cue?.translation || "", cue?.text || "", cue?.translationStage, cue?.translationStatus);
   }
 
-  function renderLines(translation, original) {
+  function renderLines(translation, original, stage = "google", status = "") {
     if (!subtitleContainer) return;
     const box = subtitleContainer.querySelector(".ot-sub-box");
     const targetLine = subtitleContainer.querySelector(".ot-target-line");
@@ -289,6 +295,11 @@
     if (originLine.textContent !== orig) originLine.textContent = orig;
     targetLine.style.display = target ? "" : "none";
     box.classList.toggle("visible", Boolean(orig));
+    const label = subtitleContainer.querySelector(".ot-sub-stage");
+    const stageText = target ? BrancyUtils.translationStageLabel(stage) + (status ? " · 補譯未完成" : "") : "";
+    if (label.textContent !== stageText) label.textContent = stageText;
+    label.title = status;
+    label.style.display = stageText ? "" : "none";
   }
 
   /**

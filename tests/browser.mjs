@@ -38,10 +38,9 @@ try {
     };
   });
   await page.goto(url + '/options/options.html');
-  await page.waitForFunction(() => document.querySelector('#opt-engine').value === 'google_free');
-  assert.equal(await page.locator('#card-openrouter').isVisible(), false);
-  await page.screenshot({ path: resolve(root, 'artifacts/settings-google.png'), fullPage: true, animations: "disabled" });
-  await page.selectOption('#opt-engine', 'openrouter');
+  await page.waitForFunction(() => document.querySelector('#opt-custom-model').value === 'deepseek/deepseek-v4-flash-0731');
+  assert.equal(await page.locator('#opt-engine, #card-google, #opt-google-key').count(), 0);
+  assert.equal(await page.locator('#card-openrouter').isVisible(), true);
   assert.equal(await page.inputValue('#opt-custom-model'), 'deepseek/deepseek-v4-flash-0731');
   assert.equal(await page.getByRole('link', { name: '取得 API Key' }).getAttribute('href'), 'https://openrouter.ai/keys');
   assert.equal(await page.getByRole('link', { name: '取得 API Key' }).getAttribute('target'), '_blank');
@@ -61,10 +60,10 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: resolve(root, 'artifacts/settings-mobile.png'), fullPage: true, animations: "disabled" });
   await page.goto(url + '/popup/popup.html');
-  await page.waitForFunction(() => document.querySelector('#ot-engine-select').value === 'openrouter');
+  await page.waitForFunction(() => document.querySelector('#ot-current-model').textContent.includes('Google 暫譯'));
+  assert.equal(await page.locator('#ot-engine-select').count(), 0);
   assert.equal(await page.isChecked('#ot-sw-yt-subs'), true);
   assert.equal(await page.isChecked('#ot-sw-selection'), true);
-  await page.selectOption('#ot-engine-select', 'google_free');
   await page.setViewportSize({ width: 344, height: 660 });
   await page.screenshot({ path: resolve(root, 'artifacts/popup.png'), fullPage: true, animations: "disabled" });
   await page.click('#ot-configure');
@@ -82,6 +81,12 @@ try {
     window.requestCount = 0;
     chrome.runtime.onMessage = { addListener(fn) { handlers.push(fn); } };
     window.BrancyUtils = {
+      translationStageLabel(stage) { return stage === 'openrouter' ? 'OpenRouter' : 'Google 暫譯'; },
+      async translateProgressively(message, { onUpdate, isCurrent = () => true }) {
+        const response = await this.sendMessageToBackground(message);
+        if (isCurrent()) onUpdate({ ...response, stages: (message.texts || message.cues || [message.word]).map(() => 'google'), statuses: [] });
+        return response;
+      },
       async getSettings() { return { engine: 'google_free' }; },
       async sendMessageToBackground(msg) {
         requestCount++;

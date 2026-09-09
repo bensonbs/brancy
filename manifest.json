@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Brancy — 輕量雙語翻譯",
-  "version": "1.1.0",
-  "description": "簡單的網頁與 YouTube 雙語翻譯。支援右鍵翻譯網頁、Google 翻譯 API，以及自行輸入模型名稱的 OpenRouter。",
+  "version": "1.2.0",
+  "description": "輕量雙語翻譯。Google 先顯示暫譯，設定 OpenRouter 後自動補譯。支援右鍵翻譯網頁、YouTube 字幕與評論。",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -36,7 +36,6 @@
     "https://clients5.google.com/*",
     "https://translate.google.com/*",
     "https://translate.googleapis.com/*",
-    "https://translation.googleapis.com/*",
     "https://openrouter.ai/*",
     "<all_urls>"
   ],

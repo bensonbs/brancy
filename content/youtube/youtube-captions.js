@@ -155,23 +155,24 @@ class YouTubeCaptionManager {
     publish();
     window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
     try {
-      const response = await BrancyUtils.sendMessageToBackground({
-        action: "TRANSLATE_SUBTITLES", cues: sourceCues, videoId
+      await BrancyUtils.translateProgressively({ action: "TRANSLATE_SUBTITLES", cues: sourceCues, videoId }, {
+        isCurrent: () => this.isCurrent(videoId, revision) && translationRevision === this.translationRevision,
+        onUpdate: response => {
+          if (response?.success && Array.isArray(response.data) && response.data.length === sourceCues.length) {
+            this.cues = sourceCues.map((cue, i) => ({ ...cue,
+              translation: typeof response.data[i]?.translation === "string" ? response.data[i].translation : "",
+              translationStage: response.stages?.[i] || "google",
+              translationStatus: response.statuses?.[i] || ""
+            }));
+          }
+          publish();
+        }
       });
-      if (!this.isCurrent(videoId, revision) || translationRevision !== this.translationRevision) return;
-      if (response?.success && Array.isArray(response.data) && response.data.length === sourceCues.length) {
-        // Only translations can be enriched asynchronously; timestamps and source
-        // text always come from the current video's caption track.
-        this.cues = sourceCues.map((cue, i) => ({ ...cue,
-          translation: typeof response.data[i]?.translation === "string" ? response.data[i].translation : ""
-        }));
-      }
     } catch (error) {
       if (!this.isCurrent(videoId, revision) || translationRevision !== this.translationRevision) return;
       console.warn("[Brancy] Translation unavailable; keeping timed original captions:", error);
     }
     this.isLoading = false;
-    publish();
   }
 
   waitForTracks(timeoutMs, videoId) {

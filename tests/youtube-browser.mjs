@@ -18,6 +18,12 @@ async function fixture() {
     window.requests = [];
     window.settings = { youtubeSubtitleEnabled: true, shortcutsEnabled: true };
     window.BrancyUtils = {
+      translationStageLabel(stage) { return stage === 'openrouter' ? 'OpenRouter' : 'Google 暫譯'; },
+      async translateProgressively(message, { onUpdate, isCurrent = () => true }) {
+        const response = await this.sendMessageToBackground(message);
+        if (isCurrent()) onUpdate({ ...response, stages: (message.texts || message.cues || [message.word]).map(() => 'google'), statuses: [] });
+        return response;
+      },
       async getSettings() { return settings; },
       debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; },
       sendMessageToBackground(message) { return new Promise(resolve => requests.push({ message, resolve })); }

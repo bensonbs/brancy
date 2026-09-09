@@ -9,20 +9,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   try {
     const { settings } = await request({ action: "GET_SETTINGS" });
-    $("ot-engine-select").value = settings.engine;
     $("ot-lang-select").value = settings.targetLang;
     $("ot-sw-yt-subs").checked = settings.youtubeSubtitleEnabled;
     $("ot-sw-selection").checked = settings.webSelectionEnabled;
     function updateHint() {
-      const engine = $("ot-engine-select").value;
-      $("ot-openrouter-hint").classList.toggle("hidden", engine === "google_free");
-      $("ot-current-model").textContent = engine === "openrouter"
-        ? `${settings.openRouterModel || "尚未填寫模型"}${settings.openRouterKey ? "" : " · 請設定 API Key"}`
-        : (settings.googleApiKey ? "Google 翻譯 API" : "請設定 Google API Key");
+      $("ot-current-model").textContent = settings.openRouterKey?.trim()
+        ? "Google 先暫譯 → OpenRouter 自動補譯"
+        : "Google 暫譯 · 設定 OpenRouter 後自動補譯";
     }
     updateHint();
     for (const [id, key, checkbox] of [
-      ["ot-engine-select", "engine"], ["ot-lang-select", "targetLang"],
+      ["ot-lang-select", "targetLang"],
       ["ot-sw-yt-subs", "youtubeSubtitleEnabled", true], ["ot-sw-selection", "webSelectionEnabled", true]
     ]) {
       $(id).addEventListener("change", async () => {

@@ -5,7 +5,7 @@
 (function () {
   let popupEl = null;
   let settings = null;
-  let lastSelectionText = "";
+  let selectionRevision = 0;
 
   async function init() {
     settings = await BrancyUtils.getSettings();
@@ -65,7 +65,7 @@
       return;
     }
 
-    lastSelectionText = text;
+    selectionRevision++;
     const isSingleWord = /^[\w'’-]{1,40}$/i.test(text);
 
     // Get coordinates from selection range
@@ -118,60 +118,46 @@
     popupEl.style.top = `${top}px`;
   }
 
+  function selectionIsCurrent(revision) {
+    return revision === selectionRevision && popupEl?.isConnected && !popupEl.classList.contains("hidden");
+  }
+
+  function appendStage(response) {
+    const label = document.createElement("div");
+    label.className = "brancy-translation-status";
+    label.textContent = BrancyUtils.translationStageLabel(response.stages?.[0]) + (response.statuses?.[0] ? " · 補譯未完成" : "");
+    label.title = response.statuses?.[0] || "";
+    popupEl.appendChild(label);
+  }
+
   async function renderWordDetails(word) {
+    const revision = selectionRevision;
     try {
-      const data = await BrancyDict.lookupWord(word);
-      if (!data) {
-        await renderPhraseTranslation(word);
-        return;
-      }
-
-      let meaningsHtml = "";
-      if (data.meanings && data.meanings.length > 0) {
-        meaningsHtml = data.meanings.map(m => `
-          <div class="ot-popup-def">
-            <span class="ot-popup-pos">${BrancyUtils.escapeHtml(m.partOfSpeech)}</span>
-            <span class="ot-popup-def-text">${BrancyUtils.escapeHtml(m.definition)}</span>
-          </div>
-        `).join("");
-      }
-
-      popupEl.innerHTML = `
-        <div class="ot-popup-header">
-          <div class="ot-popup-word">${BrancyUtils.escapeHtml(data.word)}</div>
-          ${data.phonetic ? `<div class="ot-popup-phonetic">[${BrancyUtils.escapeHtml(data.phonetic)}]</div>` : ""}
-        </div>
-        <div class="ot-popup-trans">${BrancyUtils.escapeHtml(data.translation || "")}</div>
-        ${meaningsHtml ? `<div class="ot-popup-meanings">${meaningsHtml}</div>` : ""}
-      `;
-    } catch (err) {
-      renderError(err.message);
-    }
+      await BrancyUtils.translateProgressively({ action: "LOOKUP_WORD", word }, {
+        isCurrent: () => selectionIsCurrent(revision),
+        onUpdate: response => {
+          if (!response?.success || !response.data) { renderError(response?.error || "查詞失敗"); return; }
+          const data = response.data;
+          const meanings = (data.meanings || []).map(meaning => `<div class="ot-popup-def"><span class="ot-popup-pos">${BrancyUtils.escapeHtml(meaning.partOfSpeech)}</span><span class="ot-popup-def-text">${BrancyUtils.escapeHtml(meaning.definition)}</span></div>`).join("");
+          popupEl.innerHTML = `<div class="ot-popup-header"><div class="ot-popup-word">${BrancyUtils.escapeHtml(data.word)}</div><div class="ot-popup-phonetic">${BrancyUtils.escapeHtml(data.phonetic)}</div></div><div class="ot-popup-trans">${BrancyUtils.escapeHtml(data.translation)}</div>${meanings ? `<div class="ot-popup-meanings">${meanings}</div>` : ""}`;
+          appendStage(response);
+        }
+      });
+    } catch (error) { if (selectionIsCurrent(revision)) renderError(error.message); }
   }
 
   async function renderPhraseTranslation(text) {
+    const revision = selectionRevision;
     try {
-      const res = await BrancyUtils.sendMessageToBackground({
-        action: "TRANSLATE_TEXTS",
-        texts: [text]
+      await BrancyUtils.translateProgressively({ action: "TRANSLATE_TEXTS", texts: [text] }, {
+        isCurrent: () => selectionIsCurrent(revision),
+        onUpdate: response => {
+          if (!response?.success || !response.data?.[0]) { renderError(response?.error || "翻譯失敗"); return; }
+          popupEl.innerHTML = `<div class="ot-popup-header"><span class="ot-popup-label">Brancy 翻譯</span></div><div class="ot-popup-trans">${BrancyUtils.escapeHtml(response.data[0])}</div><div class="ot-popup-orig">${BrancyUtils.escapeHtml(text)}</div>`;
+          appendStage(response);
+        }
       });
-
-      if (!res || !res.success || !res.data || !res.data[0]) {
-        throw new Error(res?.error || "翻譯失敗");
-      }
-
-      const translation = res.data[0];
-
-      popupEl.innerHTML = `
-        <div class="ot-popup-header">
-          <span class="ot-popup-label">Brancy 翻譯</span>
-        </div>
-        <div class="ot-popup-trans">${BrancyUtils.escapeHtml(translation)}</div>
-        <div class="ot-popup-orig">${BrancyUtils.escapeHtml(text)}</div>
-      `;
-    } catch (err) {
-      renderError(err.message);
-    }
+    } catch (error) { if (selectionIsCurrent(revision)) renderError(error.message); }
   }
 
   function renderError(msg) {
@@ -184,6 +170,7 @@
   }
 
   function hidePopup() {
+    selectionRevision++;
     if (popupEl) {
       popupEl.classList.add("hidden");
     }

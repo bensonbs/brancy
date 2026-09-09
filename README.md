@@ -4,9 +4,10 @@
 
 ## 使用方式
 
-1. 在 `chrome://extensions` 開啟開發人員模式，選擇「載入未封裝項目」。
-2. 選取本專案目錄。更新程式後，請在擴充功能管理頁按「重新載入」。
-3. 在一般網頁按右鍵，選擇 **Brancy：翻譯網頁／還原原文**。再次選擇會移除譯文。
+1. 從 [Releases](https://github.com/bensonbs/brancy/releases/latest) 下載 `brancy-v1.2.0.zip` 並解壓縮。
+2. 在 `chrome://extensions` 開啟開發人員模式，選擇「載入未封裝項目」。
+3. 選取解壓縮後含有 `manifest.json` 的 `brancy-v1.2.0` 目錄（開發者也可直接選取本專案目錄）。更新程式後，請在擴充功能管理頁按「重新載入」，並重新整理已開啟的網頁。
+4. 在一般網頁按右鍵，選擇 **Brancy：翻譯網頁／還原原文**。再次選擇會移除譯文。
 
 網頁翻譯僅由右鍵選單操作，沒有鍵盤快捷鍵。翻譯進行中也可再次選擇右鍵選單來停止並還原。
 
@@ -14,15 +15,15 @@
 
 瀏覽器內部頁面、擴充功能商店等受限制頁面無法注入翻譯。對已開啟的一般網頁，右鍵操作會按需載入翻譯腳本。
 
-## 翻譯引擎
+## 翻譯流程
 
-- **Google 翻譯 · 免金鑰**：預設模式，透過 Google 網頁翻譯端點運作；非官方 Cloud API，服務可用性取決於 Google。
-- **Google 翻譯 · 官方 API**：在設定中輸入 Google Cloud Translation API Key。
-- **OpenRouter · 自訂模型**：選取 OpenRouter，點擊「取得 API Key」前往 [OpenRouter 金鑰頁](https://openrouter.ai/keys)，填入金鑰。模型預填 `deepseek/deepseek-v4-flash-0731`，可改成任意可用的完整模型 ID。
+所有翻譯先使用免金鑰的 Google 網頁翻譯端點，在譯文位置顯示 **Google 暫譯**。不需選擇引擎，也不需 Google Cloud API Key。
 
-OpenRouter 使用串流回應，每次請求最多等待 60 秒，網頁翻譯每批最多 8 段，並依文字長度再拆分，以減少長文逾時。
+設定 OpenRouter 後，會自動執行第二次翻譯：先顯示 Google 暫譯，再由 OpenRouter 參照原文補齊及修正。同一位置會顯示「Google 暫譯 · OpenRouter 補譯中…」，完成後更新為「OpenRouter」。沒有設定 OpenRouter 就只執行 Google；OpenRouter 失敗或逾時會保留暫譯並顯示提示。網頁、YouTube 評論、字幕及劃詞均使用此流程，不需要額外點擊。
 
-設定自動儲存於此瀏覽器。OpenRouter 與 Google 官方 API 可按「測試連線」驗證；模型是否可用取決於 OpenRouter 與帳號權限。所選服務缺少金鑰或回傳錯誤時會顯示提示。
+在設定中點擊「取得 API Key」前往 [OpenRouter 金鑰頁](https://openrouter.ai/keys)，輸入金鑰即可啟用自動補譯。模型預填 `deepseek/deepseek-v4-flash-0731`，可自行輸入完整模型 ID，並按「測試連線」驗證。設定自動儲存於此瀏覽器，模型可用性依 OpenRouter 與帳號權限而定。
+
+OpenRouter 使用串流回應，每次請求最多等待 60 秒，每批最多 8 段並依文字長度拆分，每個頁面最多同時執行 2 個補譯請求。Google 暫譯不會等待補譯完成。Google 使用非官方網頁端點，可用性取決於 Google。
 
 ## 其他功能
 
@@ -33,8 +34,8 @@ OpenRouter 使用串流回應，每次請求最多等待 60 秒，網頁翻譯�
 
 ## 開發
 
-`npm test` 執行 API 路由與右鍵選單測試。`npm install`、`npx playwright install chromium` 後，使用 `npm run test:ui` 執行瀏覽器介面與網頁翻譯流程測試，截圖輸出至 `artifacts/`。`npm run test:youtube` 另外驗證字幕同步、非同步回應順序與評論翻譯。API 測試使用模擬回應，不會消耗金鑰額度；擴充功能本身不需要安裝任何套件。
+`npm test` 執行 API 路由與右鍵選單測試。`npm install`、`npx playwright install chromium` 後，使用 `npm run test:ui` 執行瀏覽器介面與網頁翻譯流程測試，截圖輸出至 `artifacts/`。`npm run test:progressive` 驗證自動兩階段翻譯與失敗保留暫譯。`npm run test:youtube` 另外驗證字幕同步、非同步回應順序與評論翻譯。API 測試使用模擬回應，不會消耗金鑰額度；擴充功能本身不需要安裝任何套件。
 
 主要檔案：`popup/` 工具列面板、`options/` 設定頁、`styles/base.css` 共用樣式、`background/page-translation.js` 右鍵選單、`background/translator.js` 翻譯服務、`content/webpage/` 網頁雙語與劃詞、`content/youtube/` 影片字幕。
 
-右鍵選單與動態載入依照 [Chrome contextMenus API](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) 與 [scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)；翻譯串接參考 [Google Translation Basic](https://docs.cloud.google.com/translate/docs/basic/translating-text) 與 [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) 與 [串流協定](https://openrouter.ai/docs/api_reference/streaming)。
+右鍵選單與動態載入依照 [Chrome contextMenus API](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) 與 [scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)；翻譯串接參考 [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) 與 [串流協定](https://openrouter.ai/docs/api_reference/streaming)。

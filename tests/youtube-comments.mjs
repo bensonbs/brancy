@@ -22,6 +22,12 @@ try {
     window.requests = [];
     window.chrome = { runtime: { onMessage: { addListener(fn) { handlers.push(fn); } } } };
     window.BrancyUtils = {
+      translationStageLabel(stage) { return stage === 'openrouter' ? 'OpenRouter' : 'Google 暫譯'; },
+      async translateProgressively(message, { onUpdate, isCurrent = () => true }) {
+        const response = await this.sendMessageToBackground(message);
+        if (isCurrent()) onUpdate({ ...response, stages: (message.texts || message.cues || [message.word]).map(() => 'google'), statuses: [] });
+        return response;
+      },
       async getSettings() { return { engine: 'google_free' }; },
       sendMessageToBackground(message) { return new Promise(resolve => requests.push({ message, resolve })); },
       escapeHtml(text) { return text.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }

@@ -49,19 +49,10 @@
       <section id="section-api" class="ot-section active">
         <div class="ot-section-header">
           <h2>翻譯設定</h2>
-          <p>選一個翻譯引擎，開始自在閱讀。</p>
+          <p>Google 先顯示暫譯；設定 OpenRouter 後，自動再補譯一次。</p>
         </div>
 
         <div class="ot-card">
-          <div class="ot-field">
-            <label class="ot-label" for="opt-engine">預設翻譯引擎</label>
-            <select id="opt-engine" class="ot-input">
-              <option value="google_free">Google 翻譯 · 免金鑰</option>
-              <option value="openrouter">OpenRouter · 自訂模型</option>
-              <option value="google_api">Google 翻譯 · 官方 API</option>
-            </select>
-          </div>
-
           <div class="ot-field">
             <label class="ot-label" for="opt-target-lang">目標語言</label>
             <select id="opt-target-lang" class="ot-input">
@@ -84,7 +75,7 @@
             <span>OpenRouter</span>
           </div>
           <p class="ot-card-desc">
-            支援所有主流大模型。前往 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter.ai</a> 取得您的 API Key。
+            有填入金鑰就會自動補譯；沒有金鑰則保留 Google 暫譯。前往 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter.ai</a> 取得您的 API Key。
           </p>
 
           <div class="ot-field">
@@ -108,21 +99,6 @@
           </div>
         </div>
 
-        <!-- Google Cloud API Settings -->
-        <div class="ot-card" id="card-google-api">
-          <div class="ot-card-title">Google 翻譯 API</div>
-          <p class="ot-card-desc">使用 Google Cloud Translation API 的金鑰。免金鑰模式不需要設定。</p>
-
-          <div class="ot-field">
-            <label class="ot-label" for="opt-google-key">Google API Key</label>
-            <input type="password" id="opt-google-key" class="ot-input" placeholder="AIzaSy..." />
-          </div>
-
-          <div class="ot-field-row">
-            <button type="button" id="opt-test-google" class="ot-btn-secondary">測試 Google API 連線</button>
-            <span id="opt-google-test-result" class="ot-test-status" role="status"></span>
-          </div>
-        </div>
       </section>
 
       <!-- Section 2: YouTube Subtitles -->

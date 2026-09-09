@@ -7,6 +7,7 @@
   let isPageTranslated = false;
   let settings = null;
   let translationRevision = 0;
+  let pageSession = 0;
   let youtubeAutoEnabled = false;
   let youtubeObserver = null;
   let youtubeTimer = null;
@@ -102,7 +103,8 @@
       return;
     }
 
-    const BATCH_SIZE = settings.engine === "openrouter" ? 8 : 20;
+    const BATCH_SIZE = 20;
+    const session = pageSession;
     let translatedCount = 0;
     let sameLangCount = 0;
     let failedCount = 0;
@@ -112,58 +114,52 @@
       if (revision !== translationRevision) return;
       if (announce) showToast(`正在翻譯 ${i + 1}–${Math.min(i + BATCH_SIZE, candidates.length)} / ${candidates.length} 段…`);
       const batch = candidates.slice(i, i + BATCH_SIZE);
-      const texts = batch.map(el => el.innerText.trim());
+      const texts = batch.map(el => sourceText(el));
 
       // 1. Immediately inject shimmer skeleton placeholders for immediate visual feedback
       const shimmerBlocks = batch.map(el => createShimmerBlock(el));
 
       try {
-        const res = await BrancyUtils.sendMessageToBackground({
-          action: "TRANSLATE_TEXTS",
-          texts
+        await BrancyUtils.translateProgressively({ action: "TRANSLATE_TEXTS", texts }, {
+          isCurrent: () => session === pageSession && batch.some(el => el.isConnected),
+          onUpdate: res => {
+            if (!res?.success || !Array.isArray(res.data)) {
+              lastErrorMsg = res?.error || "翻譯服務無回應";
+              failedCount += batch.length;
+              shimmerBlocks.forEach(block => block?.remove());
+              batch.forEach(el => delete el.dataset.otTranslated);
+              return;
+            }
+            batch.forEach((el, idx) => {
+              const trans = res.data[idx];
+              let block = shimmerBlocks[idx];
+              const orig = texts[idx];
+              if (!el.isConnected || sourceText(el) !== orig) {
+                block?.remove();
+                delete el.dataset.otTranslated;
+                youtubeHasPending = true;
+                return;
+              }
+              if (typeof trans !== "string" || !trans.trim()) {
+                block?.remove(); delete el.dataset.otTranslated; failedCount++; return;
+              }
+              if (isYouTube) processedYoutubeText.set(el, orig);
+              const different = trans.replace(/\s+/g, "").toLowerCase() !== orig.replace(/\s+/g, "").toLowerCase();
+              if (different || res.stages?.[idx] === "pending") {
+                if (!block?.isConnected) {
+                  delete el.dataset.otTranslated;
+                  block = shimmerBlocks[idx] = createShimmerBlock(el);
+                }
+                resolveShimmerBlock(block, el, trans, res.stages?.[idx], res.statuses?.[idx]);
+                translatedCount++;
+                isPageTranslated = true;
+                document.body.classList.add("ot-page-translated");
+              } else {
+                sameLangCount++; block?.remove(); delete el.dataset.otTranslated;
+              }
+            });
+          }
         });
-
-        if (revision !== translationRevision) return;
-        if (res && res.success && Array.isArray(res.data)) {
-          batch.forEach((el, idx) => {
-            const trans = res.data[idx];
-            const block = shimmerBlocks[idx];
-            const orig = texts[idx];
-            if (!el.isConnected || !block?.isConnected || (isYouTube && el.innerText.trim() !== orig)) {
-              block?.remove();
-              delete el.dataset.otTranslated;
-              youtubeHasPending = true;
-              return;
-            }
-
-            if (typeof trans !== "string" || !trans.trim()) {
-              if (block) block.remove();
-              delete el.dataset.otTranslated;
-              failedCount++;
-              return;
-            }
-
-            if (isYouTube) processedYoutubeText.set(el, orig);
-            // Normalize and compare ignoring whitespace
-            const cleanOrig = orig.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
-            const cleanTrans = trans.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
-
-            if (cleanTrans && cleanTrans !== cleanOrig) {
-              resolveShimmerBlock(block, el, trans);
-              translatedCount++;
-            } else {
-              // The text is identical to original (already in target language or untranslatable)
-              sameLangCount++;
-              if (block) block.remove();
-              delete el.dataset.otTranslated;
-            }
-          });
-        } else {
-          lastErrorMsg = res?.error || "翻譯服務無回應";
-          failedCount += batch.length;
-          shimmerBlocks.forEach(b => b && b.remove());
-          batch.forEach(el => delete el.dataset.otTranslated);
-        }
       } catch (err) {
         if (revision !== translationRevision) return;
         lastErrorMsg = err.message;
@@ -201,6 +197,7 @@
 
   function restoreOriginalPage(announce = true) {
     translationRevision++;
+    pageSession++;
     isTranslating = false;
     youtubeAutoEnabled = false;
     youtubeHasPending = false;
@@ -215,6 +212,13 @@
     if (announce) showToast("Brancy: 已還原原始網頁");
   }
 
+  function sourceText(el) {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll(".brancy-web-trans, script, style, [hidden]").forEach(node => node.remove());
+    clone.querySelectorAll("br").forEach(node => node.replaceWith("\n"));
+    return clone.textContent.replace(/\s+/g, " ").trim();
+  }
+
   function findTranslateCandidates() {
     const selector = isYouTube ? youtubeSelector : "p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt, article p, section p, .article-content p, .post-content p, .entry-content p, .rte p, .article__content p";
     const all = Array.from(document.querySelectorAll(selector));
@@ -226,7 +230,7 @@
       }
       if (isYouTube) {
         const processed = processedYoutubeText.get(el);
-        if (processed === el.innerText.trim()) return false;
+        if (processed === sourceText(el)) return false;
         if (processed !== undefined) {
           youtubeBlocks.get(el)?.remove();
           delete el.dataset.otTranslated;
@@ -250,7 +254,7 @@
       }
 
       // Check text content
-      const text = el.innerText ? el.innerText.trim() : "";
+      const text = el.innerText ? sourceText(el) : "";
       if (text.length < 5) return false;
 
       // Don't translate pure numbers or symbols
@@ -304,13 +308,17 @@
   /**
    * Replace shimmer block with translated content smoothly
    */
-  function resolveShimmerBlock(block, originalEl, translatedText) {
+  function resolveShimmerBlock(block, originalEl, translatedText, stage = "google", status = "") {
     if (!block) return;
     originalEl.dataset.otTranslated = "true";
 
     block.classList.remove("ot-shimmer-loading");
     block.classList.add("ot-trans-fade-in");
-    block.innerHTML = `<div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div>`;
+    block.innerHTML = `<div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div><div class="brancy-translation-status" role="status"></div>`;
+    const label = block.querySelector(".brancy-translation-status");
+    label.textContent = BrancyUtils.translationStageLabel(stage) + (status ? " · 補譯未完成" : "");
+    label.title = status;
+    block.dataset.translationStage = stage;
   }
 
   let toastTimer;

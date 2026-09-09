@@ -2,15 +2,13 @@
  * Brancy Background Service Worker
  */
 
-import { translateSubtitleCues, translateWebTexts, lookupWordDetails } from "./translator.js";
+import { translateSubtitleCues, translateWebTexts, lookupWordDetails, refinementContext, refineTranslations } from "./translator.js";
 import { callOpenRouter } from "./openrouter.js";
 import { registerPageMenu } from "./page-translation.js";
 
 const DEFAULT_SETTINGS = {
-  engine: "google_free", // "google_free" | "google_api" | "openrouter"
   openRouterKey: "",
   openRouterModel: "deepseek/deepseek-v4-flash-0731",
-  googleApiKey: "",
   targetLang: "zh-TW",
   youtubeSubtitleEnabled: true,
   youtubeFontSize: 20,
@@ -32,6 +30,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     merged.openRouterModel = DEFAULT_SETTINGS.openRouterModel;
   }
   await chrome.storage.local.set(merged);
+  await chrome.storage.local.remove(["engine", "googleApiKey"]);
   await registerPageMenu();
 });
 
@@ -74,7 +73,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "TRANSLATE_TEXTS": {
         try {
           const results = await translateWebTexts(message.texts, settings);
-          return { success: true, data: results };
+          return { success: true, data: results, refinement: refinementContext(settings) };
         } catch (err) {
           console.error("[Brancy] TRANSLATE_TEXTS error:", err);
           return { success: false, error: err.message };
@@ -84,7 +83,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "TRANSLATE_SUBTITLES": {
         try {
           const cues = await translateSubtitleCues(message.cues, settings, message.videoId);
-          return { success: true, data: cues };
+          return { success: true, data: cues, refinement: refinementContext(settings) };
         } catch (err) {
           console.error("[Brancy] TRANSLATE_SUBTITLES error:", err);
           return { success: false, error: err.message };
@@ -94,39 +93,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "LOOKUP_WORD": {
         try {
           const data = await lookupWordDetails(message.word, settings);
-          return { success: true, data };
+          return { success: true, data, refinement: refinementContext(settings) };
         } catch (err) {
           console.error("[Brancy] LOOKUP_WORD error:", err);
           return { success: false, error: err.message };
         }
       }
 
+      case "REFINE_TEXTS": {
+        const data = await refineTranslations(message.texts, message.drafts, message.context, settings);
+        return { success: true, data };
+      }
+
       case "TEST_API_KEY": {
-        try {
-          const { engine, key, model } = message;
-          if (engine === "openrouter") {
-            const reply = await callOpenRouter({
-              apiKey: key,
-              model,
-              messages: [{ role: "user", content: "Reply with 'OK'" }]
-            });
-            return { success: true, reply };
-          } else if (engine === "google_api") {
-            const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${key.trim()}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ q: "hello", target: "zh-TW" })
-            });
-            if (!res.ok) {
-              const err = await res.text();
-              throw new Error(`Google Cloud API 失敗: ${err}`);
-            }
-            return { success: true, reply: "Google Cloud API 金鑰驗證成功！" };
-          }
-          return { success: true, reply: "Google 免費端點無須金鑰！" };
-        } catch (err) {
-          return { success: false, error: err.message };
-        }
+        const reply = await callOpenRouter({ apiKey: message.key, model: message.model,
+          messages: [{ role: "user", content: "Reply with 'OK'" }] });
+        return { success: true, reply };
       }
 
       case "CLEAR_CACHE": {

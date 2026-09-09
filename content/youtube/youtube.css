@@ -59,9 +59,7 @@
 }
 
 /* Order switch */
-.ot-sub-box.ot-origin-first {
-  flex-direction: column-reverse;
-}
+.ot-sub-box.ot-origin-first .ot-origin-line { order: -1; }
 
 /* YouTube Player Controls Bar Custom Buttons */
 .brancy-ytp-controls {
@@ -109,3 +107,5 @@
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+.ot-sub-stage { font: 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #ccc; order: 3; margin-top: 3px; }
