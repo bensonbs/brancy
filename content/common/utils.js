@@ -2,6 +2,9 @@
  * Brancy Common Utilities
  */
 
+(function () {
+  if (typeof window !== "undefined" && window.BrancyUtils?.__brancyReady) return;
+
 const DEFAULT_SETTINGS = {
   openRouterKey: "",
   openRouterModel: "deepseek/deepseek-v4-flash-0731",
@@ -262,6 +265,7 @@ function speakText(text, lang = "en-US") {
 // Attach to window for standard content scripts
 if (typeof window !== "undefined") {
   window.BrancyUtils = {
+    __brancyReady: true,
     DEFAULT_SETTINGS,
     isExtensionValid,
     getSettings,
@@ -277,3 +281,5 @@ if (typeof window !== "undefined") {
     speakText
   };
 }
+if (typeof window !== "undefined") window.dispatchEvent(new Event("brancy:utils-ready"));
+})();

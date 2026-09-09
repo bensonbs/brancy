@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Brancy — 輕量雙語翻譯",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "輕量雙語翻譯。Google 先顯示暫譯，設定 OpenRouter 後自動補譯。支援右鍵翻譯網頁、YouTube 字幕與評論。",
   "icons": {
     "16": "icons/icon16.png",
@@ -63,17 +63,25 @@
       "css": [
         "content/webpage/webpage.css"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "exclude_matches": [
+        "*://*.youtube.com/*"
+      ]
     },
     {
       "matches": [
         "*://*.youtube.com/*"
       ],
       "js": [
+        "content/common/utils.js",
+        "content/common/dict.js",
+        "content/webpage/selection.js",
+        "content/webpage/webpage.js",
         "content/youtube/youtube-captions.js",
         "content/youtube/youtube.js"
       ],
       "css": [
+        "content/webpage/webpage.css",
         "content/youtube/youtube.css"
       ],
       "run_at": "document_idle"

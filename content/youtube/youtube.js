@@ -3,6 +3,8 @@
  */
 
 (function () {
+  if (window.BrancyYouTube) return;
+  let BrancyUtils, BrancyCaptions;
   let settings = null;
   let cues = [];
   let currentCueIndex = -1;
@@ -382,9 +384,19 @@
     }
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  const controller = window.BrancyYouTube = { ready: null };
+  function startWhenReady() {
+    if (controller.ready || document.readyState === "loading" || !window.BrancyUtils || !window.BrancyCaptions) return;
+    BrancyUtils = window.BrancyUtils;
+    BrancyCaptions = window.BrancyCaptions;
+    window.removeEventListener("brancy:utils-ready", startWhenReady);
+    window.removeEventListener("brancy:captions-ready", startWhenReady);
+    controller.ready = init().catch(error => {
+      console.warn("[Brancy] YouTube initialization failed:", error);
+    });
   }
+  window.addEventListener("brancy:utils-ready", startWhenReady);
+  window.addEventListener("brancy:captions-ready", startWhenReady);
+  document.addEventListener("DOMContentLoaded", startWhenReady, { once: true });
+  startWhenReady();
 })();

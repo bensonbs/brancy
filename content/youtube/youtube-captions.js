@@ -2,6 +2,9 @@
  * Brancy YouTube Caption Fetcher & Sentence Segmenter
  */
 
+(function () {
+if (window.BrancyCaptions?.__brancyReady) return;
+
 class YouTubeCaptionManager {
   constructor() {
     this.currentVideoId = null;
@@ -408,6 +411,12 @@ class YouTubeCaptionManager {
 
 }
 
-if (typeof window !== "undefined") {
+function startWhenReady() {
+  if (!window.BrancyUtils || window.BrancyCaptions?.__brancyReady) return;
   window.BrancyCaptions = new YouTubeCaptionManager();
+  window.BrancyCaptions.__brancyReady = true;
+  window.dispatchEvent(new Event("brancy:captions-ready"));
 }
+if (window.BrancyUtils) startWhenReady();
+else window.addEventListener("brancy:utils-ready", startWhenReady, { once: true });
+})();
