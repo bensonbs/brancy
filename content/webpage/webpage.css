@@ -52,3 +52,26 @@
 }
 
 .brancy-translation-status { font-size: 11px; line-height: 1.6; font-weight: 400; opacity: .65; margin-top: 4px; }
+
+/* Only expand translated Hugging Face discussion cards. :has keeps the original
+   layout intact if a failed/no-op translation removes its block. */
+.brancy-hf-discussion-row:has(.brancy-hf-discussion-trans) {
+  height: auto !important; min-height: 64px;
+}
+.brancy-hf-discussion-row:has(.brancy-hf-discussion-trans) > a {
+  height: auto !important; min-height: 64px; padding-bottom: 32px;
+  box-sizing: border-box;
+}
+.brancy-hf-discussion-row div:has(> .brancy-hf-discussion-trans) {
+  flex-direction: column; align-items: stretch; min-width: 0;
+}
+.brancy-hf-discussion-row div:has(> .brancy-hf-discussion-trans) > :is(h1,h2,h3,h4,h5,h6) {
+  white-space: normal; overflow-wrap: anywhere; min-width: 0;
+}
+.brancy-web-trans.brancy-hf-discussion-trans {
+  margin: 4px 0 0; padding: 0 0 0 10px; min-width: 0;
+  white-space: normal; line-height: 1.5; font-size: .95em;
+}
+.brancy-web-trans.brancy-hf-discussion-trans.ot-shimmer-loading {
+  min-height: 0; align-items: stretch;
+}

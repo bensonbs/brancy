@@ -207,6 +207,7 @@
     youtubeBlocks = new WeakMap();
     document.querySelectorAll(".brancy-web-trans").forEach(el => el.remove());
     document.querySelectorAll("[data-ot-translated]").forEach(el => delete el.dataset.otTranslated);
+    document.querySelectorAll(".brancy-hf-discussion-row").forEach(el => el.classList.remove("brancy-hf-discussion-row"));
     document.body.classList.remove("ot-page-translated");
     isPageTranslated = false;
     if (announce) showToast("Brancy: 已還原原始網頁");
@@ -292,6 +293,19 @@
       anchor.insertAdjacentElement("afterend", block);
       youtubeBlocks.set(originalEl, block);
       return block;
+    }
+
+    // Hugging Face discussion cards have a fixed height and bottom-positioned
+    // author metadata. Let just these translated cards grow with their text.
+    if (location.hostname === "huggingface.co" && /^H[1-6]$/.test(originalEl.tagName)) {
+      const link = originalEl.closest("a[href]");
+      const row = link?.parentElement;
+      if (link && /\/discussions\/\d+\/?$/.test(new URL(link.href).pathname) &&
+          row && getComputedStyle(row).position === "relative" &&
+          Array.from(row.children).some(el => el !== link && getComputedStyle(el).position === "absolute")) {
+        row.classList.add("brancy-hf-discussion-row");
+        block.classList.add("brancy-hf-discussion-trans");
+      }
     }
 
     // For list items, append inside <li> to maintain clean list structure and not disrupt <ol> numbering

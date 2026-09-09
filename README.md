@@ -34,9 +34,9 @@
 
 ## 使用方式
 
-1. 從 [Releases](https://github.com/bensonbs/brancy/releases/latest) 下載 `brancy-v1.2.3.zip` 並解壓縮。
+1. 從 [Releases](https://github.com/bensonbs/brancy/releases/latest) 下載 `brancy-v1.2.4.zip` 並解壓縮。
 2. 在 `chrome://extensions` 開啟開發人員模式，選擇「載入未封裝項目」。
-3. 選取解壓縮後含有 `manifest.json` 的 `brancy-v1.2.3` 目錄（開發者也可直接選取本專案目錄）。更新程式後，請在擴充功能管理頁按「重新載入」，並重新整理已開啟的網頁。
+3. 選取解壓縮後含有 `manifest.json` 的 `brancy-v1.2.4` 目錄（開發者也可直接選取本專案目錄）。更新程式後，請在擴充功能管理頁按「重新載入」，並重新整理已開啟的網頁。
 4. 在一般網頁按右鍵，選擇 **Brancy：翻譯網頁／還原原文**。再次選擇會移除譯文。
 
 網頁翻譯僅由右鍵選單操作，沒有鍵盤快捷鍵。翻譯進行中也可再次選擇右鍵選單來停止並還原。
