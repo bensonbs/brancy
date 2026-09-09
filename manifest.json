@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Brancy — 輕量雙語翻譯",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "輕量雙語翻譯。Google 先顯示暫譯，設定 OpenRouter 後自動補譯。支援右鍵翻譯網頁、YouTube 字幕與評論。",
   "icons": {
     "16": "icons/icon16.png",

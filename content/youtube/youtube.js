@@ -326,7 +326,7 @@
     }
 
     if (box) {
-      box.classList.add("ot-origin-first");
+      box.classList.toggle("ot-origin-first", settings.youtubePrimaryOrder !== "target_first");
     }
 
     subtitleContainer.style.display = isSubtitleVisible ? "flex" : "none";

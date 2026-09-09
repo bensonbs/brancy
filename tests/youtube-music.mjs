@@ -55,7 +55,7 @@ try {
     { tStartMs: 4000, dDurationMs: 2000, segs: [{ utf8: '【旁白】' }] },
     { tStartMs: 6000, dDurationMs: 2000, segs: [{ utf8: 'I love music.' }] }
   ] }), 'music'); });
-  assert.deepEqual(await timed.evaluate(() => requests[0].message.cues.map(cue => [cue.text, cue.start, cue.end])), [['Hello there', 2, 4], ['I love music.', 6, 8]]);
+  assert.deepEqual(await timed.evaluate(() => requests.filter(r => r.message.cues).flatMap(r => r.message.cues).map(cue => [cue.text, cue.start, cue.end])), [['Hello there', 2, 4], ['I love music.', 6, 8]]);
   await timed.addScriptTag({ path: resolve(root, 'content/youtube/youtube.js') });
   await timed.evaluate(() => requests[0].callback({ success: true, data: requests[0].message.cues.map(cue => ({ ...cue, translation: '[掌聲] 你好' })) }));
   await timed.waitForFunction(() => BrancyCaptions.cues[0].translation === '你好');

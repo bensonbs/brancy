@@ -103,6 +103,12 @@
       return;
     }
 
+    const viewportDistance = el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom <= 0) return 1 - rect.bottom;
+      if (rect.top >= window.innerHeight) return rect.top - window.innerHeight + 1;
+      return 0;
+    };
     const BATCH_SIZE = 20;
     const session = pageSession;
     let translatedCount = 0;
@@ -113,6 +119,9 @@
     for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
       if (revision !== translationRevision) return;
       if (announce) showToast(`正在翻譯 ${i + 1}–${Math.min(i + BATCH_SIZE, candidates.length)} / ${candidates.length} 段…`);
+      // Re-rank only pending text after each batch so scrolling changes priority.
+      const remaining = candidates.slice(i).sort((a, b) => viewportDistance(a) - viewportDistance(b));
+      candidates.splice(i, remaining.length, ...remaining);
       const batch = candidates.slice(i, i + BATCH_SIZE);
       const texts = batch.map(el => sourceText(el));
 
@@ -122,6 +131,7 @@
       try {
         await BrancyUtils.translateProgressively({ action: "TRANSLATE_TEXTS", texts }, {
           isCurrent: () => session === pageSession && batch.some(el => el.isConnected),
+          priority: () => Math.min(...batch.map(viewportDistance)),
           onUpdate: res => {
             if (!res?.success || !Array.isArray(res.data)) {
               lastErrorMsg = res?.error || "翻譯服務無回應";

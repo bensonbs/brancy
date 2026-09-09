@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../content/youtube/youtube.js', import.meta.url), 'utf8');
-async function fixture() {
+async function fixture(settings = {}) {
   const listeners = {}, elements = new Map();
   function element(id = '') {
     const classes = new Set();
@@ -19,7 +19,7 @@ async function fixture() {
   const video = element('video'); Object.assign(video,{ currentTime:1,paused:false,seeking:false });
   elements.set('video', video); elements.set('video.html5-main-video',video);
   const window = { addEventListener(name, fn) { (listeners[name] ||= []).push(fn); }, removeEventListener() {},
-    BrancyUtils: { async getSettings() { return {youtubeSubtitleEnabled:true}; }, debounce(fn) { return fn; }, stripSubtitleAnnotations(t) {return t || '';}, translationStageLabel(stage) { return stage === 'google-only' ? '' : 'Google 暫譯'; } },
+    BrancyUtils: { async getSettings() { return {youtubeSubtitleEnabled:true,...settings}; }, debounce(fn) { return fn; }, stripSubtitleAnnotations(t) {return t || '';}, translationStageLabel(stage) { return stage === 'google-only' ? '' : 'Google 暫譯'; } },
     BrancyCaptions: { async fetchCaptionsForCurrentVideo() {return [];} }, location:{search:'?v=test'} };
   const document = { readyState:'complete',body:element(),activeElement:{tagName:'BODY'},
     getElementById(id) {return id==='movie_player' ? player : elements.get('#'+id);},
@@ -68,4 +68,14 @@ test('Google-only subtitles hide the label but still show pending and failure st
   assert.equal(f.elements.get('.ot-sub-stage').style.display, '');
   f.cue({translationStage:'google-only',translationState:'error',translationStatus:'HTTP 503'});
   assert.match(f.status, /翻譯錯誤.*503/);
+});
+
+test('subtitle order and font sizes follow the saved settings', async () => {
+  for (const order of ['origin_first','target_first']) {
+    const f=await fixture({youtubePrimaryOrder:order,youtubeFontSize:27,youtubeOriginFontSize:17});
+    f.cue({translation:'你好'});
+    assert.equal(f.elements.get('.ot-sub-box').classList.contains('ot-origin-first'),order==='origin_first');
+    assert.equal(f.elements.get('.ot-target-line').style.fontSize,'27px');
+    assert.equal(f.elements.get('.ot-origin-line').style.fontSize,'17px');
+  }
 });

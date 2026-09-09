@@ -238,10 +238,11 @@ class YouTubeCaptionManager {
         return rank(a) - rank(b) || a.id - b.id;
       });
     const requests = [];
-    // Four cues for the first visible result, then eight per Google request.
+    // Request the current cue alone first, then prefetch in batches of eight.
     // Two small requests may run concurrently; seek events reorder pending work.
     while (task.activeRequests < 2) {
-      const batch = candidates.splice(0, task.started ? 8 : 4);
+      const currentCue = candidates[0]?.start <= time && candidates[0]?.end > time;
+      const batch = candidates.splice(0, !task.started || currentCue ? 1 : 8);
       if (!batch.length) break;
       task.started = true;
       task.activeRequests++;

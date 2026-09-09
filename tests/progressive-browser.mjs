@@ -41,6 +41,18 @@ async function start(page, message) {
   }, message);
 }
 try {
+  const echoed = await fixture();
+  const source = '間のゆとりが穏やかな時間を創り出す';
+  await start(echoed, { action: 'TRANSLATE_TEXTS', texts: [source] });
+  await waitRequests(echoed, 1);
+  await respond(echoed, 0, [source], refinement);
+  await waitRequests(echoed, 2);
+  assert.equal(await echoed.evaluate(() => updates[0].data[0]), '正在翻譯…');
+  await echoed.evaluate(() => reply(1, { success: false, error: 'HTTP 503' }));
+  await echoed.waitForFunction(() => updates.at(-1).stages[0] === 'untranslated');
+  assert.equal(await echoed.evaluate(() => updates.at(-1).data[0]), '未產生譯文，請重試');
+  assert.match(await echoed.evaluate(() => updates.at(-1).statuses[0]), /503/);
+  await echoed.close();
   // No key: one Google call. Configured key: immediate drafts, bounded automatic refinements.
   const page = await fixture();
   await start(page, { action: 'TRANSLATE_TEXTS', texts: ['Hello'] });
@@ -49,6 +61,19 @@ try {
   assert.equal(await page.evaluate(() => requests.length), 1);
   assert.deepEqual(await page.evaluate(() => updates[0].stages), ['google-only']);
   assert.equal(await page.evaluate(() => BrancyUtils.translationStageLabel(updates[0].stages[0])), '');
+  const streaming = await fixture();
+  await start(streaming, {action:'TRANSLATE_TEXTS',texts:['first','second']});
+  await respond(streaming,0,['暫一','暫二'],refinement);
+  await waitRequests(streaming,2);
+  await streaming.evaluate(()=>handlers.forEach(fn=>fn({action:'REFINEMENT_PROGRESS',requestId:requests[1].message.requestId,data:['第一句']},{})));
+  assert.deepEqual(await streaming.evaluate(()=>updates.at(-1).data),['第一句','暫二']);
+  assert.deepEqual(await streaming.evaluate(()=>updates.at(-1).stages),['refining','pending']);
+  await streaming.evaluate(()=>reply(1,{success:false,error:'stream interrupted'}));
+  await streaming.waitForFunction(()=>updates.at(-1).stages.every(stage=>stage==='google'));
+  assert.deepEqual(await streaming.evaluate(()=>updates.at(-1).data),['暫一','暫二']);
+  await streaming.evaluate(()=>handlers.forEach(fn=>fn({action:'REFINEMENT_PROGRESS',requestId:'unrelated',data:['錯誤']},{})));
+  assert.deepEqual(await streaming.evaluate(()=>updates.at(-1).data),['暫一','暫二']);
+  await streaming.close();
   const texts = Array.from({ length: 19 }, (_, i) => `Source ${i}`);
   await start(page, { action: 'TRANSLATE_TEXTS', texts });
   await respond(page, 1, texts.map((_, i) => `暫譯 ${i}`), refinement);

@@ -113,6 +113,16 @@ function sendMessageToBackground(message) {
   });
 }
 
+async function requestRefinement(message, onProgress) {
+  const requestId = crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-");
+  const listener = update => {
+    if (update.action === "REFINEMENT_PROGRESS" && update.requestId === requestId && Array.isArray(update.data)) onProgress(update.data);
+  };
+  chrome.runtime.onMessage?.addListener(listener);
+  try { return await sendMessageToBackground({ ...message, requestId }); }
+  finally { chrome.runtime.onMessage?.removeListener?.(listener); }
+}
+
 // Google completion resolves immediately. OpenRouter work is queued separately
 // so slow second passes never hold up later Google batches or flood the API.
 let translationSettingsRevision = 0;
@@ -149,22 +159,42 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
   const subtitle = message.action === "TRANSLATE_SUBTITLES";
   const word = message.action === "LOOKUP_WORD";
   const drafts = subtitle ? response?.data?.map(cue => cue.translation || "")
-    : word ? [response?.data?.translation || ""] : response?.data;
+    : word ? [response?.data?.translation || ""] : Array.isArray(response?.data) ? [...response.data] : response?.data;
   const data = response?.data;
   const stages = sources.map(() => response?.refinement ? "pending" : "google-only");
   const statuses = sources.map(() => "");
   const publish = () => onUpdate({ ...response, data: subtitle ? data.map(cue => ({ ...cue }))
     : word ? { ...data } : [...data], stages: [...stages], statuses: [...statuses] });
   if (!response?.success || !Array.isArray(drafts)) { onUpdate(response); return response; }
+  const missingDraft = sources.map((source, i) => !drafts[i]?.trim() || drafts[i].trim() === source?.trim());
+  const setText = (index, value) => {
+    if (subtitle) data[index] = { ...data[index], translation: value };
+    else if (word) data.translation = value;
+    else data[index] = value;
+  };
+  missingDraft.forEach((missing, i) => {
+    if (!missing) return;
+    drafts[i] = "";
+    setText(i, response.refinement ? "正在翻譯…" : "未產生譯文，請重試");
+    stages[i] = response.refinement ? "waiting" : "untranslated";
+  });
   publish();
   if (!response.refinement || !sources.length || !current()) return response;
   let batch = [], characters = 0, pendingJobs = 0;
   const cancel = () => {
     if (!isCurrent()) return;
     stages.forEach((stage, index) => {
-      if (stage === "pending") {
+      if (stage === "pending" || stage === "refining" || stage === "waiting") {
+        if (subtitle) data[index] = { ...data[index], translation: drafts[index] };
+        else if (word) data.translation = drafts[index];
+        else data[index] = drafts[index];
         stages[index] = "google";
         statuses[index] = "設定已變更，保留 Google 暫譯；請重新翻譯。";
+        if (missingDraft[index]) {
+          setText(index, "未產生譯文，請重試");
+          stages[index] = "untranslated";
+          statuses[index] = "設定已變更，請重新翻譯。";
+        }
       }
     });
     publish();
@@ -175,8 +205,19 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
     refinementQueue.push({ isCurrent: current, priority,
       finish: () => { if (--pendingJobs === 0) pendingTranslations.delete(cancel); }, run: async () => {
     try {
-      const refined = await sendMessageToBackground({ action: "REFINE_TEXTS", youtubeSubtitle: message.youtubeSubtitle === true || subtitle, context: response.refinement,
-        texts: indices.map(i => sources[i]), drafts: indices.map(i => drafts[i]) });
+      const refined = await requestRefinement({ action: "REFINE_TEXTS", youtubeSubtitle: message.youtubeSubtitle === true || subtitle, context: response.refinement,
+        texts: indices.map(i => sources[i]), drafts: indices.map(i => drafts[i]) }, partial => {
+        if (!current() || partial.length > indices.length) return;
+        partial.forEach((value, i) => {
+          const index = indices[i];
+          if (typeof value !== "string" || !value.trim() || value.trim() === sources[index].trim()) return;
+          if (subtitle) data[index] = { ...data[index], translation: value };
+          else if (word) data.translation = value;
+          else data[index] = value;
+          stages[index] = "refining";
+        });
+        publish();
+      });
       if (!current()) return;
       if (!refined?.success || !Array.isArray(refined.data) || refined.data.length !== indices.length) {
         throw new Error(refined?.error || "補譯未完成");
@@ -184,17 +225,35 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
       indices.forEach((index, i) => {
         const value = refined.data[i];
         // A missing/unchanged source response must not erase an existing draft.
-        if (typeof value === "string" && value.trim() && (value.trim() !== sources[index].trim() || drafts[index] === sources[index])) {
+        if (typeof value === "string" && value.trim() && value.trim() !== sources[index].trim()) {
           if (subtitle) data[index] = { ...data[index], translation: value };
           else if (word) data.translation = value;
           else data[index] = value;
           stages[index] = "openrouter";
-        } else { stages[index] = "google"; statuses[index] = "補譯未完成，保留 Google 暫譯"; }
+        } else {
+          if (subtitle) data[index] = { ...data[index], translation: drafts[index] };
+          else if (word) data.translation = drafts[index];
+          else data[index] = drafts[index];
+          stages[index] = "google"; statuses[index] = "補譯未完成，保留 Google 暫譯";
+        }
       });
     } catch (error) {
       if (!current()) return;
-      indices.forEach(index => { stages[index] = "google"; statuses[index] = `補譯未完成，保留 Google 暫譯：${error.message}`; });
+      indices.forEach(index => {
+        if (subtitle) data[index] = { ...data[index], translation: drafts[index] };
+        else if (word) data.translation = drafts[index];
+        else data[index] = drafts[index];
+        stages[index] = "google";
+        statuses[index] = `補譯未完成，保留 Google 暫譯：${error.message}`;
+      });
     }
+    indices.forEach(index => {
+      if (missingDraft[index] && stages[index] === "google") {
+        setText(index, "未產生譯文，請重試");
+        stages[index] = "untranslated";
+        statuses[index] = statuses[index].replace("，保留 Google 暫譯", "");
+      }
+    });
     if (current()) publish();
   } });
   };
@@ -208,7 +267,7 @@ async function translateProgressively(message, { onUpdate, isCurrent = () => tru
 }
 
 function translationStageLabel(stage) {
-  return stage === "google-only" ? "" : stage === "openrouter" ? "OpenRouter" : stage === "pending" ? "Google 暫譯 · OpenRouter 補譯中…" : "Google 暫譯";
+  return stage === "waiting" ? "OpenRouter 翻譯中…" : stage === "untranslated" ? "翻譯未完成" : stage === "google-only" ? "" : stage === "refining" ? "OpenRouter 補譯中…" : stage === "openrouter" ? "OpenRouter" : stage === "pending" ? "Google 暫譯 · OpenRouter 補譯中…" : "Google 暫譯";
 }
 
 // Strip square-bracket annotations from subtitles, including nested labels.

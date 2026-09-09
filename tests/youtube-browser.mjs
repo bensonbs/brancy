@@ -167,9 +167,9 @@ try {
     [[1, 1.1, 'A short fragment'], [1.1, 3, 'the next fragment']]);
   assert.equal(await managerPage.evaluate(() => published.length), 1);
   await managerPage.evaluate(events => BrancyCaptions.handleNativeTimedText(JSON.stringify({ events }), 'first'), original);
-  assert.equal(await managerPage.evaluate(() => requests.length), 1);
+  assert.equal(await managerPage.evaluate(() => requests.length), 2);
   await managerPage.evaluate(() => {
-    requests[0].resolve({ success: true, data: [{ start: 900, end: 901, text: 'Wrong clock', translation: '短句' }, { translation: '下一句' }] });
+    requests[0].resolve({ success: true, data: [{ start: 900, end: 901, text: 'Wrong clock', translation: '短句' }] });
   });
   await managerPage.waitForFunction(() => published.length === 2);
   assert.equal(await managerPage.evaluate(() => BrancyCaptions.cues[0].start), 1);
@@ -182,8 +182,8 @@ try {
     BrancyCaptions.handleNativeTimedText(JSON.stringify({ events: [{ tStartMs: 0, dDurationMs: 1000, segs: [{ utf8: 'Third video' }] }] }), 'third');
     BrancyCaptions.handleTracksFound([{ baseUrl: 'old-track' }], 'second');
     BrancyCaptions.handleNativeTimedText('{"events":[]}', 'second');
-    requests[1].resolve({ success: true, data: [{ translation: '遲到的第二支影片' }] });
-    requests[2].resolve({ success: true, data: [{ translation: '第三支影片' }] });
+    requests.find(r => r.message.videoId === 'second').resolve({ success: true, data: [{ translation: '遲到的第二支影片' }] });
+    requests.find(r => r.message.videoId === 'third').resolve({ success: true, data: [{ translation: '第三支影片' }] });
   });
   await managerPage.waitForFunction(() => BrancyCaptions.cues[0].translation === '第三支影片');
   assert.equal(await managerPage.evaluate(() => BrancyCaptions.currentTracks), null);

@@ -32,10 +32,6 @@
 
           <span>網頁雙語與劃詞</span>
         </a>
-        <a href="#section-shortcuts" class="ot-nav-item" data-target="section-shortcuts">
-
-          <span>快捷鍵與操作</span>
-        </a>
         <a href="#section-data" class="ot-nav-item" data-target="section-data">
 
           <span>快取與資料管理</span>
@@ -105,24 +101,25 @@
       <section id="section-youtube" class="ot-section">
         <div class="ot-section-header">
           <h2>字幕外觀</h2>
-          <p>影片原語在上、繁體中文在下，不改動 YouTube CC 語言。可自訂字級、顏色與背景。</p>
+          <p>顯示影片原文與繁體中文譯文，可選擇上下順序、字級、顏色與背景，不改動 YouTube CC 語言。</p>
         </div>
 
         <div class="ot-card">
           <div class="ot-field">
             <label class="ot-label" for="opt-sub-order">字幕排列順序</label>
-            <select id="opt-sub-order" class="ot-input" disabled>
-              <option value="origin_first">原始語言在上，繁體中文在下</option>
+            <select id="opt-sub-order" class="ot-input">
+              <option value="origin_first">影片原文在上，繁體中文譯文在下</option>
+              <option value="target_first">繁體中文譯文在上，影片原文在下</option>
             </select>
           </div>
 
           <div class="ot-field">
-            <label class="ot-label" for="opt-font-size">目標翻譯字體大小: <span id="val-font-size">20px</span></label>
+            <label class="ot-label" for="opt-font-size">繁體中文譯文字體大小: <span id="val-font-size">20px</span></label>
             <input type="range" id="opt-font-size" min="14" max="32" value="20" class="ot-range" />
           </div>
 
           <div class="ot-field">
-            <label class="ot-label" for="opt-origin-font-size">原始語言字體大小: <span id="val-origin-font-size">14px</span></label>
+            <label class="ot-label" for="opt-origin-font-size">影片原文字體大小: <span id="val-origin-font-size">14px</span></label>
             <input type="range" id="opt-origin-font-size" min="12" max="22" value="14" class="ot-range" />
           </div>
 
@@ -173,55 +170,6 @@
         </div>
       </section>
 
-      <!-- Section 4: Shortcuts -->
-      <section id="section-shortcuts" class="ot-section">
-        <div class="ot-section-header">
-          <h2>快捷操作</h2>
-          <p>學習語言時的高效快捷鍵操控。</p>
-        </div>
-
-        <div class="ot-card">
-          <div class="ot-field-checkbox">
-            <input type="checkbox" id="opt-shortcuts-enabled" />
-            <div>
-              <label for="opt-shortcuts-enabled">啟用快捷鍵</label>
-              <p class="ot-card-desc">在 YouTube 觀看時使用下列按鍵快速切換句型（打字輸入時會自動忽略）。</p>
-            </div>
-          </div>
-
-          <table class="ot-shortcuts-table">
-            <thead>
-              <tr>
-                <th>按鍵</th>
-                <th>功能說明</th>
-                <th>學習情境</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><kbd>A</kbd></td>
-                <td>跳轉至上一句字幕</td>
-                <td>回聽沒聽清楚的前一句</td>
-              </tr>
-              <tr>
-                <td><kbd>S</kbd></td>
-                <td>重播當前這句字幕</td>
-                <td>跟讀影子訓練 (Shadowing)</td>
-              </tr>
-              <tr>
-                <td><kbd>D</kbd></td>
-                <td>跳轉至下一句字幕</td>
-                <td>快速瀏覽練習</td>
-              </tr>
-              <tr>
-                <td><kbd>E</kbd></td>
-                <td>開啟 / 關閉雙語字幕</td>
-                <td>盲聽測驗與對照</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
 
       <!-- Section 5: Data & Cache -->
       <section id="section-data" class="ot-section">

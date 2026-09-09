@@ -125,7 +125,7 @@
   function appendStage(response) {
     const label = document.createElement("div");
     label.className = "brancy-translation-status";
-    label.textContent = BrancyUtils.translationStageLabel(response.stages?.[0]) + (response.statuses?.[0] ? " · 補譯未完成" : "");
+    label.textContent = BrancyUtils.translationStageLabel(response.stages?.[0]) + (response.statuses?.[0] ? " · " + response.statuses[0] : "");
     label.style.display = label.textContent ? "" : "none";
     label.title = response.statuses?.[0] || "";
     popupEl.appendChild(label);

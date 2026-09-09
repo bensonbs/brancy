@@ -11,6 +11,8 @@ test('OpenRouter sends the exact custom model and trimmed key', async () => {
   };
   assert.equal(await callOpenRouter({ apiKey: ' test-key ', model: ' vendor/custom-model ', messages: [] }), 'OK');
   assert.equal(JSON.parse(request.body).model, 'vendor/custom-model');
+  assert.deepEqual(JSON.parse(request.body).reasoning, { enabled: false });
+  assert.deepEqual(JSON.parse(request.body).provider, { sort: "latency", preferred_min_throughput: 50 });
   assert.equal(request.headers.Authorization, 'Bearer test-key');
   assert.equal(request.url, 'https://openrouter.ai/api/v1/chat/completions');
 });

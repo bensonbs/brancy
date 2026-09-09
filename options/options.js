@@ -39,9 +39,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const previewTarget = document.getElementById("ot-preview-target");
   const previewOrigin = document.getElementById("ot-preview-origin");
 
-  // Web & Shortcuts
+  // Web
   const optWebSelection = document.getElementById("opt-web-selection");
-  const optShortcutsEnabled = document.getElementById("opt-shortcuts-enabled");
 
   // Buttons
   const testOpenRouterBtn = document.getElementById("opt-test-openrouter");
@@ -64,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     optCustomModel.value = s.openRouterModel ?? "deepseek/deepseek-v4-flash-0731";
 
-    optSubOrder.value = "origin_first";
+    optSubOrder.value = s.youtubePrimaryOrder || "origin_first";
     optFontSize.value = s.youtubeFontSize || 20;
     valFontSize.textContent = `${optFontSize.value}px`;
     optOriginFontSize.value = s.youtubeOriginFontSize || 14;
@@ -73,7 +72,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     optSubBg.value = s.youtubeSubBg || "rgba(0, 0, 0, 0.75)";
 
     optWebSelection.checked = !!s.webSelectionEnabled;
-    optShortcutsEnabled.checked = !!s.shortcutsEnabled;
   }
 
   function updatePreview() {
@@ -95,8 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       youtubeOriginFontSize: parseInt(optOriginFontSize.value, 10),
       youtubeSubColor: optSubColor.value,
       youtubeSubBg: optSubBg.value,
-      webSelectionEnabled: optWebSelection.checked,
-      shortcutsEnabled: optShortcutsEnabled.checked
+      webSelectionEnabled: optWebSelection.checked
     };
 
     try {
@@ -115,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Bind inputs to save
-  [optTargetLang, optSubOrder, optSubBg, optWebSelection, optShortcutsEnabled].forEach(el => {
+  [optTargetLang, optSubOrder, optSubBg, optWebSelection].forEach(el => {
     el.addEventListener("change", () => {
       save();
         updatePreview();

@@ -103,7 +103,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "REFINE_TEXTS": {
-        const data = await refineTranslations(message.texts, message.drafts, message.context, settings);
+        let delivery = Promise.resolve();
+        const progress = sender.tab?.id != null && message.requestId ? data => {
+          delivery = delivery.then(() => chrome.tabs.sendMessage(sender.tab.id,
+            { action: "REFINEMENT_PROGRESS", requestId: message.requestId, data },
+            { frameId: sender.frameId ?? 0 })).catch(() => {});
+        } : undefined;
+        let data;
+        try { data = await refineTranslations(message.texts, message.drafts, message.context, settings, progress); }
+        finally { await delivery; }
+
         return { success: true, data };
       }
 

@@ -4,7 +4,7 @@
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
-export async function callOpenRouter({ apiKey, model, messages, temperature = 0.3, timeoutMs = 60000 }) {
+export async function callOpenRouter({ apiKey, model, messages, temperature = 0.3, timeoutMs = 60000, onContent }) {
   if (!apiKey?.trim()) {
     throw new Error("請先在 Brancy 設定頁面填寫 OpenRouter API Key！");
   }
@@ -32,6 +32,8 @@ export async function callOpenRouter({ apiKey, model, messages, temperature = 0.
         model: model.trim(),
         temperature,
         stream: true,
+        reasoning: { enabled: false },
+        provider: { sort: "latency", preferred_min_throughput: 50 },
         messages
       }),
       signal: controller.signal
@@ -48,7 +50,7 @@ export async function callOpenRouter({ apiKey, model, messages, temperature = 0.
     }
 
     const content = res.headers?.get("content-type")?.includes("text/event-stream")
-      ? await readCompletionStream(res.body)
+      ? await readCompletionStream(res.body, onContent)
       : (await res.json()).choices?.[0]?.message?.content;
     if (!content) {
       throw new Error("OpenRouter 回應為空");
@@ -67,7 +69,7 @@ export async function callOpenRouter({ apiKey, model, messages, temperature = 0.
 
 // Parse SSE events across arbitrary network and UTF-8 boundaries. Processing
 // comments are heartbeats, and a mid-stream error must never become a translation.
-async function readCompletionStream(body) {
+async function readCompletionStream(body, onContent) {
   if (!body) throw new Error("OpenRouter 回應為空");
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -83,7 +85,10 @@ async function readCompletionStream(body) {
     if (choice?.finish_reason === "error" || choice?.finish_reason === "length") {
       throw new Error("OpenRouter 回應未完成，請縮短文字或更換模型。");
     }
-    if (typeof choice?.delta?.content === "string") content += choice.delta.content;
+    if (typeof choice?.delta?.content === "string") {
+      content += choice.delta.content;
+      onContent?.(content);
+    }
   };
   try {
     while (!complete) {

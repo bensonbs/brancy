@@ -51,7 +51,29 @@ try {
   await page.reload();
   await page.waitForFunction(() => document.querySelector('#opt-custom-model').value === 'vendor/my-custom-model');
   await page.fill('#opt-custom-model', 'deepseek/deepseek-v4-flash-0731');
-  for (const id of ['section-youtube', 'section-web', 'section-shortcuts', 'section-data']) {
+  await page.locator('[data-target="section-youtube"]').click();
+  assert.equal(await page.locator('#opt-sub-order').isEnabled(), true);
+  await page.locator('#opt-font-size').press('Home');
+  for (let i=0;i<13;i++) await page.locator('#opt-font-size').press('ArrowRight');
+  await page.locator('#opt-origin-font-size').press('Home');
+  for (let i=0;i<5;i++) await page.locator('#opt-origin-font-size').press('ArrowRight');
+  for (const order of ['target_first','origin_first']) {
+    await page.selectOption('#opt-sub-order',order);
+    const geometry=await page.evaluate(()=>({
+      target:document.querySelector('#ot-preview-target').getBoundingClientRect().top,
+      origin:document.querySelector('#ot-preview-origin').getBoundingClientRect().top,
+      targetSize:getComputedStyle(document.querySelector('#ot-preview-target')).fontSize,
+      originSize:getComputedStyle(document.querySelector('#ot-preview-origin')).fontSize
+    }));
+    assert.equal(geometry.targetSize,'27px'); assert.equal(geometry.originSize,'17px');
+    assert.equal(geometry.target<geometry.origin,order==='target_first');
+    await page.reload();
+    await page.waitForFunction(order=>document.querySelector('#opt-sub-order').value===order,order);
+    await page.locator('[data-target="section-youtube"]').click();
+    assert.equal(await page.inputValue('#opt-font-size'),'27');
+    assert.equal(await page.inputValue('#opt-origin-font-size'),'17');
+  }
+  for (const id of ['section-youtube', 'section-web', 'section-data']) {
     await page.locator(`[data-target="${id}"]`).click();
     assert.equal(await page.locator(`#${id}`).isVisible(), true);
   }

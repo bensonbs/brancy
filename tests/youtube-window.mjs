@@ -37,7 +37,7 @@ try {
   });
   await page.addScriptTag({ path: resolve(root, 'content/youtube/youtube.js') });
   await page.waitForFunction(() => requests.length === 2);
-  assert.deepEqual(await page.evaluate(() => requests.map(request => request.message.cues.length)), [4, 8]);
+  assert.deepEqual(await page.evaluate(() => requests.map(request => request.message.cues.length)), [1, 8]);
   assert.equal(await page.evaluate(() => requests[0].message.cues[0].id), 100, 'start at the playhead, not at the start of the video');
   assert.equal(await page.evaluate(() => BrancyCaptions.cues.length), 600);
   assert.equal(await page.locator('.ot-origin-line').textContent(), 'Cue 100');
@@ -45,7 +45,7 @@ try {
   await page.evaluate(() => replyGoogle(0));
   await page.waitForFunction(() => document.querySelector('.ot-target-line').textContent === 'Google 100');
   assert.match(await page.locator('.ot-sub-stage').textContent(), /Google 暫譯/);
-  assert.equal(await page.evaluate(() => BrancyCaptions.cues[104].translation), '', 'first small batch displays before the second Google response');
+  assert.equal(await page.evaluate(() => BrancyCaptions.cues[101].translation), '', 'first small batch displays before the second Google response');
   assert.ok(await page.evaluate(() => requests.filter(request => request.message.action === 'TRANSLATE_SUBTITLES').every(request => request.message.cues.length <= 8 && request.message.cues.every(cue => cue.start <= 345))));
 
   // Seek while two old Google requests and one OpenRouter request are in flight.
@@ -96,7 +96,7 @@ try {
   await page.evaluate(() => settingListeners.forEach(fn => fn({ targetLang: { newValue: 'ja' } }, 'local')));
   const restarted = await page.evaluate(start => requests.slice(start).filter(request => request.message.cues).map(request => request.message.cues.map(cue => cue.id)), requestsBeforeChange);
   assert.equal(restarted[0][0], 200);
-  assert.deepEqual(restarted.map(batch => batch.length), [4, 8]);
+  assert.deepEqual(restarted.map(batch => batch.length), [1, 8]);
   assert.equal(await page.evaluate(() => BrancyCaptions.cues[100].translation), '');
   await page.evaluate(index => replyRefinement(index), oldRefinement);
   assert.equal(await page.evaluate(() => BrancyCaptions.cues[100].translation), '');
@@ -121,5 +121,5 @@ try {
   assert.equal(await page.evaluate(() => published.length), publishCount);
   assert.equal(await page.locator('.ot-origin-line').textContent(), '');
   assert.deepEqual(errors, []);
-  console.log('PASS: 600-cue track starts at playhead; first 4 cues display immediately; bounded lookahead; seeking reprioritizes Google/OpenRouter; late replies preserve current time and other batches; settings restart the current window; navigation cancels.');
+  console.log('PASS: 600-cue track starts at playhead; current cue displays independently; bounded lookahead; seeking reprioritizes Google/OpenRouter; late replies preserve current time and other batches; settings restart the current window; navigation cancels.');
 } finally { await browser.close(); }
