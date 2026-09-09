@@ -8,17 +8,19 @@ class YouTubeCaptionManager {
     this.currentTracks = null;
     this.cues = [];
     this.isLoading = false;
+    this.loadRevision = 0;
+    this.translationRevision = 0;
     this.setupListeners();
   }
 
   setupListeners() {
     window.addEventListener("message", (event) => {
-      if (!event.data || event.data.source !== "BRANCY_PAGE_BRIDGE") return;
+      if (event.source !== window || !event.data || event.data.source !== "BRANCY_PAGE_BRIDGE") return;
 
       if (event.data.action === "CAPTION_TRACKS_FOUND") {
         this.handleTracksFound(event.data.tracks, event.data.videoId);
       } else if (event.data.action === "NATIVE_TIMEDTEXT_CAPTURED") {
-        this.handleNativeTimedText(event.data.rawText);
+        this.handleNativeTimedText(event.data.rawText, event.data.videoId);
       }
     });
   }
@@ -28,8 +30,24 @@ class YouTubeCaptionManager {
     return params.get("v");
   }
 
-  async handleNativeTimedText(rawText) {
-    if (!rawText || this.cues.length > 0) return;
+  resetForVideo(videoId) {
+    if (this.currentVideoId === videoId) return;
+    this.currentVideoId = videoId;
+    this.currentTracks = null;
+    this.cues = [];
+    this.isLoading = false;
+    this.loadRevision++;
+    this.translationRevision++;
+  }
+
+  isCurrent(videoId, revision) {
+    return videoId === this.getVideoId() && videoId === this.currentVideoId && revision === this.loadRevision;
+  }
+
+  async handleNativeTimedText(rawText, videoId) {
+    if (!rawText || !videoId || videoId !== this.getVideoId()) return;
+    this.resetForVideo(videoId);
+    if (this.cues.length > 0) return;
 
     let rawCues = [];
     // Try JSON3
@@ -49,7 +67,7 @@ class YouTubeCaptionManager {
 
     if (rawCues.length > 0) {
       console.log("[Brancy] Intercepted native timedtext:", rawCues.length, "cues");
-      await this.processAndTranslateCues(rawCues);
+      await this.processAndTranslateCues(rawCues, videoId, this.loadRevision);
     }
   }
 
@@ -57,12 +75,12 @@ class YouTubeCaptionManager {
     const videoId = this.getVideoId();
     if (!videoId) return null;
 
-    if (this.currentVideoId === videoId && this.cues.length > 0) {
+    if (this.currentVideoId === videoId && (this.cues.length > 0 || this.isLoading)) {
       return this.cues;
     }
 
-    this.currentVideoId = videoId;
-    this.cues = [];
+    this.resetForVideo(videoId);
+    const revision = this.loadRevision;
     this.isLoading = true;
 
     // 1. Request tracks & trigger player
@@ -72,13 +90,17 @@ class YouTubeCaptionManager {
     }, "*");
 
     // 2. Wait up to 1.2s for bridge response
-    let tracks = await this.waitForTracks(1200);
+    let tracks = await this.waitForTracks(1200, videoId);
+
+    if (!this.isCurrent(videoId, revision)) return null;
 
     // 3. Fallback: fetch page HTML if bridge didn't answer
     if (!tracks || tracks.length === 0) {
       tracks = await this.fallbackFetchTracksFromHtml(videoId);
     }
 
+    if (!this.isCurrent(videoId, revision)) return null;
+    if (this.cues.length) return this.cues;
     if (!tracks || tracks.length === 0) {
       console.warn("[Brancy] No caption tracks found for video:", videoId);
       this.isLoading = false;
@@ -92,6 +114,8 @@ class YouTubeCaptionManager {
 
     // 5. Try fetching timedtext directly
     const rawEvents = await this.fetchTimedText(selectedTrack.baseUrl);
+    if (!this.isCurrent(videoId, revision)) return null;
+    if (this.cues.length) return this.cues;
     let rawCues = [];
 
     if (Array.isArray(rawEvents) && rawEvents.length > 0) {
@@ -101,8 +125,9 @@ class YouTubeCaptionManager {
     }
 
     if (rawCues.length > 0) {
-      await this.processAndTranslateCues(rawCues);
+      await this.processAndTranslateCues(rawCues, videoId, revision);
     } else {
+      this.isLoading = false;
       // Direct fetch was empty (poToken protected)
       // Request player to activate CC and listen for native network intercept / live DOM
       console.log("[Brancy] Direct timedtext was empty, activating player CC & Live DOM observer");
@@ -116,57 +141,65 @@ class YouTubeCaptionManager {
     return this.cues;
   }
 
-  async processAndTranslateCues(rawCues) {
-    const videoId = this.getVideoId();
-    const segmentedCues = this.mergeSentenceSegments(rawCues);
-
-    window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
-
-    try {
-      const resp = await BrancyUtils.sendMessageToBackground({
-        action: "TRANSLATE_SUBTITLES",
-        cues: segmentedCues,
-        videoId
-      });
-
-      if (resp && resp.success && resp.data) {
-        this.cues = resp.data;
-      } else {
-        this.cues = segmentedCues;
-      }
-    } catch (err) {
-      console.error("[Brancy] Translation failed, using original subtitles:", err);
-      this.cues = segmentedCues;
-    }
-
-    this.isLoading = false;
-    window.dispatchEvent(new CustomEvent("brancy:cues-ready", {
+  async processAndTranslateCues(rawCues, videoId, revision) {
+    if (!this.isCurrent(videoId, revision) || this.cues.length) return;
+    const translationRevision = ++this.translationRevision;
+    // Keep the source clock intact. Combining adjacent cues displays future words
+    // early, and waiting for translation leaves the renderer on delayed live text.
+    const sourceCues = rawCues.filter(cue => Number.isFinite(cue.start) && cue.end > cue.start)
+      .sort((a, b) => a.start - b.start).map((cue, id) => ({ ...cue, id }));
+    this.cues = sourceCues;
+    const publish = () => window.dispatchEvent(new CustomEvent("brancy:cues-ready", {
       detail: { cues: this.cues, videoId }
     }));
+    publish();
+    window.dispatchEvent(new CustomEvent("brancy:translating-start", { detail: { videoId } }));
+    try {
+      const response = await BrancyUtils.sendMessageToBackground({
+        action: "TRANSLATE_SUBTITLES", cues: sourceCues, videoId
+      });
+      if (!this.isCurrent(videoId, revision) || translationRevision !== this.translationRevision) return;
+      if (response?.success && Array.isArray(response.data) && response.data.length === sourceCues.length) {
+        // Only translations can be enriched asynchronously; timestamps and source
+        // text always come from the current video's caption track.
+        this.cues = sourceCues.map((cue, i) => ({ ...cue,
+          translation: typeof response.data[i]?.translation === "string" ? response.data[i].translation : ""
+        }));
+      }
+    } catch (error) {
+      if (!this.isCurrent(videoId, revision) || translationRevision !== this.translationRevision) return;
+      console.warn("[Brancy] Translation unavailable; keeping timed original captions:", error);
+    }
+    this.isLoading = false;
+    publish();
   }
 
-  waitForTracks(timeoutMs) {
-    return new Promise((resolve) => {
-      if (this.currentTracks && this.currentTracks.length > 0) {
+  waitForTracks(timeoutMs, videoId) {
+    return new Promise(resolve => {
+      if (this.currentVideoId === videoId && this.currentTracks?.length) {
         resolve(this.currentTracks);
         return;
       }
-      const timer = setTimeout(() => resolve(null), timeoutMs);
-      const listener = (event) => {
-        if (event.data?.source === "BRANCY_PAGE_BRIDGE" && event.data?.action === "CAPTION_TRACKS_FOUND") {
-          clearTimeout(timer);
-          window.removeEventListener("message", listener);
-          resolve(event.data.tracks);
+      const finish = tracks => {
+        clearTimeout(timer);
+        window.removeEventListener("message", listener);
+        resolve(tracks);
+      };
+      const listener = event => {
+        if (event.source === window && event.data?.source === "BRANCY_PAGE_BRIDGE" &&
+            event.data.action === "CAPTION_TRACKS_FOUND" && event.data.videoId === videoId) {
+          finish(event.data.tracks);
         }
       };
+      const timer = setTimeout(() => finish(null), timeoutMs);
       window.addEventListener("message", listener);
     });
   }
 
   handleTracksFound(tracks, videoId) {
-    if (tracks && tracks.length > 0) {
-      this.currentTracks = tracks;
-    }
+    if (videoId !== this.getVideoId() || !tracks?.length) return;
+    this.resetForVideo(videoId);
+    this.currentTracks = tracks;
   }
 
   async fallbackFetchTracksFromHtml(videoId) {
@@ -237,7 +270,7 @@ class YouTubeCaptionManager {
 
       const start = (ev.tStartMs || 0) / 1000;
       const duration = (ev.dDurationMs || 0) / 1000;
-      const end = start + Math.max(0.5, duration);
+      const end = start + (duration > 0 ? duration : 0.5);
 
       cues.push({
         id: id++,
@@ -275,7 +308,7 @@ class YouTubeCaptionManager {
         cues.push({
           id: id++,
           start,
-          end: start + Math.max(0.5, dur),
+          end: start + (dur > 0 ? dur : 0.5),
           duration: dur,
           text,
           translation: ""
@@ -286,43 +319,6 @@ class YouTubeCaptionManager {
     return cues;
   }
 
-  /**
-   * Intelligently merges short/fragmented cues into coherent sentences
-   */
-  mergeSentenceSegments(cues) {
-    if (!cues || cues.length <= 1) return cues;
-
-    const merged = [];
-    let current = null;
-
-    const sentenceEndRegex = /[.?!。！？]$/;
-
-    for (const cue of cues) {
-      if (!current) {
-        current = { ...cue };
-        continue;
-      }
-
-      const silenceGap = cue.start - current.end;
-      const wordsCount = current.text.split(/\s+/).length;
-      const hasTerminalPunctuation = sentenceEndRegex.test(current.text);
-
-      if (!hasTerminalPunctuation && silenceGap < 1.5 && wordsCount < 18) {
-        current.text = `${current.text} ${cue.text}`.trim();
-        current.end = cue.end;
-        current.duration = current.end - current.start;
-      } else {
-        merged.push(current);
-        current = { ...cue };
-      }
-    }
-
-    if (current) {
-      merged.push(current);
-    }
-
-    return merged.map((c, i) => ({ ...c, id: i }));
-  }
 }
 
 if (typeof window !== "undefined") {

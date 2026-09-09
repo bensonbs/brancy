@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Brancy - AI 雙語網頁與 YouTube 翻譯",
-  "version": "1.0.0",
-  "description": "開源免費的 Trancy 替代方案。支援 YouTube 雙語字幕、互動腳本側邊欄、單句複讀、網頁沉浸式雙語翻譯與劃詞查詞，支援 Google 翻譯與自訂 OpenRouter AI 金鑰。",
+  "name": "Brancy — 輕量雙語翻譯",
+  "version": "1.1.0",
+  "description": "簡單的網頁與 YouTube 雙語翻譯。支援右鍵翻譯網頁、Google 翻譯 API，以及自行輸入模型名稱的 OpenRouter。",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -27,7 +27,9 @@
   },
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "contextMenus",
+    "scripting"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
@@ -51,24 +53,7 @@
     },
     {
       "matches": [
-        "*://*.youtube.com/*"
-      ],
-      "js": [
-        "content/common/utils.js",
-        "content/youtube/youtube-captions.js",
-        "content/youtube/youtube.js"
-      ],
-      "css": [
-        "content/youtube/youtube.css"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
         "<all_urls>"
-      ],
-      "exclude_matches": [
-        "*://*.youtube.com/*"
       ],
       "js": [
         "content/common/utils.js",
@@ -78,6 +63,19 @@
       ],
       "css": [
         "content/webpage/webpage.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/youtube/youtube-captions.js",
+        "content/youtube/youtube.js"
+      ],
+      "css": [
+        "content/youtube/youtube.css"
       ],
       "run_at": "document_idle"
     }

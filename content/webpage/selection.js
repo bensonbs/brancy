@@ -11,6 +11,12 @@
     settings = await BrancyUtils.getSettings();
     createPopupElement();
     bindEvents();
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.webSelectionEnabled) {
+        settings.webSelectionEnabled = changes.webSelectionEnabled.newValue ?? true;
+        if (!settings.webSelectionEnabled) hidePopup();
+      }
+    });
   }
 
   function createPopupElement() {
@@ -24,6 +30,7 @@
 
   function bindEvents() {
     document.addEventListener("mouseup", (e) => {
+      if (e.button !== 0) return;
       // Don't trigger if click inside our popup
       if (popupEl && popupEl.contains(e.target)) return;
 
@@ -81,8 +88,7 @@
       <div class="ot-popup-shimmer">
         <div class="ot-popup-shimmer-header">
           <span class="ot-shimmer-badge">
-            <span class="ot-shimmer-sparkle">✨</span>
-            <span>AI 查詞翻譯中...</span>
+            <span>查詞翻譯中…</span>
           </span>
         </div>
         <div class="ot-shimmer-bar" style="width: 88%; height: 16px; margin: 8px 0 6px 0;"></div>
@@ -171,7 +177,7 @@
   function renderError(msg) {
     popupEl.innerHTML = `
       <div class="ot-popup-header">
-        <span class="ot-popup-label" style="color: #f87171;">翻譯錯誤</span>
+        <span class="ot-popup-label">翻譯錯誤</span>
       </div>
       <div class="ot-popup-error">${BrancyUtils.escapeHtml(msg)}</div>
     `;

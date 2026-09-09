@@ -1,128 +1,40 @@
-# Brancy - 免費開源 AI 雙語網頁與 YouTube 翻譯擴充功能
+# Brancy
 
-> 🎯 **Trancy 完美開源平替方案**：無須每月訂閱付費，完整複製 Trancy 核心功能 —— **YouTube 雙語字幕、互動腳本側邊欄、單句循環練習、沉浸式網頁雙語翻譯與劃詞即時查詞**。支援 **Google 免費翻譯端點（免設定 Key）** 與 **OpenRouter AI（支援 Gemini 2.5 Flash、DeepSeek、Claude、GPT-4o mini 等主流大模型）**。
+黑白灰極簡風格的 Chrome 雙語翻譯擴充功能。原生 JavaScript、無前端框架、無須編譯。
 
----
+## 使用方式
 
-## ✨ 核心特色與功能一覽
+1. 在 `chrome://extensions` 開啟開發人員模式，選擇「載入未封裝項目」。
+2. 選取本專案目錄。更新程式後，請在擴充功能管理頁按「重新載入」。
+3. 在一般網頁按右鍵，選擇 **Brancy：翻譯網頁／還原原文**。再次選擇會移除譯文。
 
-### 1. 🎬 YouTube AI 雙語字幕播放器
-- **雙語對照**：同時顯示目標語言（如繁體中文）與影片原始語言（如英文、日文）。
-- **個人化樣式**：自訂字幕字級大小（14px - 32px）、字體顏色、背景透明度與文字陰影。
-- **語系順序切換**：可選擇「翻譯在上，原文在下」或「原文在上，翻譯在下」。
-- **無縫原生整合**：在 YouTube 播放器右下角控制列無縫注入控制開關（快捷鍵 `E` 切換顯示）。
+網頁翻譯僅由右鍵選單操作，沒有鍵盤快捷鍵。翻譯進行中也可再次選擇右鍵選單來停止並還原。
 
-### 2. 📖 YouTube 互動腳本側邊欄（Trancy 經典精讀模式）
-- **時間戳記即時跳轉**：點擊任意字幕句子即可立刻跳轉影片至該時間點。
-- **即時播放跟隨（Auto-scroll）**：隨影片播放自動高亮當前句子並平滑滾動，亦可一鍵鎖定自由瀏覽。
-- **🔁 單句 A-B 循環複讀**：針對聽不清楚或練習口說的句子，一鍵啟動單句循環練習（Shadowing 影子跟讀神器）。
-- **單字互動即時查詞**：游標點擊字幕中的任意單字，立刻彈出音標、詞性、釋義與朗讀發音。
-- **台詞搜尋過濾**：內建即時搜尋欄，快速過濾全片關鍵台詞與單字。
-- **匯出雙語字幕**：一鍵將全片雙語字幕匯出為 **SRT**、**VTT** 或 **TXT** 對照檔。
+在 YouTube 觀看頁，右鍵翻譯會處理影片標題、說明及評論，不翻譯推薦影片、播放器與留言輸入區。譯文與簡短載入提示置於各則評論下方；捲動或展開回覆後，新載入的評論會接續翻譯，還原或切換影片後停止。
 
-### 3. 🌐 網頁沉浸式雙語對照閱讀
-- **全頁雙語閱讀**：按下快捷鍵 `Alt + T` 或點擊右下角懸浮按鈕，段落下方即刻生成優雅的雙語對照。
-- **保持原始排版**：智慧識別文章段落，自動排除導航列、側邊欄、代碼區塊與頁尾。
-- **段落快捷功能**：滑鼠懸浮至翻譯段落即可點擊「🔊 朗讀語音」或「📋 複製翻譯」。
+瀏覽器內部頁面、擴充功能商店等受限制頁面無法注入翻譯。對已開啟的一般網頁，右鍵操作會按需載入翻譯腳本。
 
-### 4. 🔍 劃詞即時查詞與翻譯氣泡
-- **智慧選詞識別**：選取網頁或字幕上的單字時，自動查詢音標、詞性與字典釋義。
-- **長句翻譯**：選取長句或段落時，自動調用 AI 或 Google 進行雙語翻譯對照。
-- **真人朗讀發音**：內建 Web Speech API 語音合成朗讀。
+## 翻譯引擎
 
-### 5. 🤖 多翻譯引擎自由切換
-- **⚡ Google 免費翻譯端點（預設）**：零設定、零成本、無須 API Key，安裝後立刻使用！
-- **🤖 OpenRouter AI**：填入使用者自己的 OpenRouter API Key，自由調用最先進的 LLM 大模型：
-  - `google/gemini-2.5-flash`（推薦：極速、超高性價比、翻譯精確）
-  - `deepseek/deepseek-chat`（推薦：中文翻譯極自然、語感極佳）
-  - `openai/gpt-4o-mini`
-  - `anthropic/claude-3.5-haiku`
-  - 或自訂任何 OpenRouter 支援的模型！
-- **🌐 Google Cloud Translation API**：支援自訂 Google Cloud 官方 API Key。
-- **智慧本機記憶快取**：翻譯過的影片字幕與網頁文字自動儲存於瀏覽器本機，再次觀看時 0 秒加載，完全不重複消耗 API 額度。
+- **Google 翻譯 · 免金鑰**：預設模式，透過 Google 網頁翻譯端點運作；非官方 Cloud API，服務可用性取決於 Google。
+- **Google 翻譯 · 官方 API**：在設定中輸入 Google Cloud Translation API Key。
+- **OpenRouter · 自訂模型**：選取 OpenRouter，點擊「取得 API Key」前往 [OpenRouter 金鑰頁](https://openrouter.ai/keys)，填入金鑰。模型預填 `deepseek/deepseek-v4-flash-0731`，可改成任意可用的完整模型 ID。
 
----
+OpenRouter 使用串流回應，每次請求最多等待 60 秒，網頁翻譯每批最多 8 段，並依文字長度再拆分，以減少長文逾時。
 
-## 🚀 安裝指南（Chrome / Edge / Brave / Arc）
+設定自動儲存於此瀏覽器。OpenRouter 與 Google 官方 API 可按「測試連線」驗證；模型是否可用取決於 OpenRouter 與帳號權限。所選服務缺少金鑰或回傳錯誤時會顯示提示。
 
-本擴充功能採用 Chrome 最新 **Manifest V3** 原生規範開發，無須額外編譯，可直接載入：
+## 其他功能
 
-1. 開啟 Chromium 核心瀏覽器（Google Chrome、Microsoft Edge、Brave 或 Arc）。
-2. 在網址列輸入並前往擴充功能管理頁面：
-   - Chrome：`chrome://extensions`
-   - Edge：`edge://extensions`
-   - Brave：`brave://extensions`
-3. 開啟右上角的 **「開發人員模式」（Developer mode）**。
-4. 點擊左上角的 **「載入未打包項目」（Load unpacked）**。
-5. 選擇資料夾路徑：
-   ```
-   /Users/benson/code/brancy
-   ```
-6. 點擊「選擇資料夾」，完成安裝！您可以在瀏覽器右上角擴充功能清單中看到 **Brancy** 圖示。
+- YouTube 雙語字幕依影片播放時間及原始字幕時間碼顯示；暫停凍結即時字幕、拖曳重新對齊，過期翻譯不會蓋回目前畫面。可調整字級、顏色、背景與原文順序。
+- 劃詞翻譯與英文單字釋義，可隨時關閉。
+- YouTube 字幕本機快取，可從面板或設定頁清除。
+- YouTube 播放快捷鍵：`A` 上一句、`S` 重播、`D` 下一句、`E` 切換字幕。可在設定中關閉。
 
----
+## 開發
 
-## ⚙️ 設定 OpenRouter API Key
+`npm test` 執行 API 路由與右鍵選單測試。`npm install`、`npx playwright install chromium` 後，使用 `npm run test:ui` 執行瀏覽器介面與網頁翻譯流程測試，截圖輸出至 `artifacts/`。`npm run test:youtube` 另外驗證字幕同步、非同步回應順序與評論翻譯。API 測試使用模擬回應，不會消耗金鑰額度；擴充功能本身不需要安裝任何套件。
 
-若您希望使用大模型（如 Gemini 2.5 Flash 或 DeepSeek）進行更高品質的 AI 翻譯：
+主要檔案：`popup/` 工具列面板、`options/` 設定頁、`styles/base.css` 共用樣式、`background/page-translation.js` 右鍵選單、`background/translator.js` 翻譯服務、`content/webpage/` 網頁雙語與劃詞、`content/youtube/` 影片字幕。
 
-1. 前往 [OpenRouter.ai/keys](https://openrouter.ai/keys) 註冊並建立一組 API Key。
-2. 點擊瀏覽器右上角的 Brancy 圖示，點擊右上角設定齒輪 ⚙️（或在圖示上按右鍵選擇「選項」）。
-3. 在「API 金鑰與模型」分頁：
-   - 翻譯引擎切換為：`🤖 OpenRouter AI`
-   - 貼上您的 **OpenRouter API Key**。
-   - 選擇偏好模型（推薦：`google/gemini-2.5-flash` 或 `deepseek/deepseek-chat`）。
-   - 點擊「⚡ 測試 OpenRouter 連線」按鈕驗證。
-4. 系統將自動儲存設定！
-
----
-
-## ⌨️ 快捷鍵一覽表
-
-在 YouTube 觀看影片時可直接使用下列快捷鍵（在留言區或輸入框打字時會自動忽略，不影響正常輸入）：
-
-| 快捷鍵 | 功能 | 學習應用情境 |
-| :---: | :--- | :--- |
-| <kbd>A</kbd> | 跳轉至**上一句**字幕 | 回聽沒聽懂的前一句 |
-| <kbd>S</kbd> | **重播當前這句**字幕 | 跟讀訓練、影子練習 (Shadowing) |
-| <kbd>D</kbd> | 跳轉至**下一句**字幕 | 快速瀏覽練習 |
-| <kbd>E</kbd> | 開啟 / 關閉雙語字幕覆蓋層 | 盲聽自我測驗 |
-| <kbd>R</kbd> | 開啟 / 收起互動腳本側邊欄 | 全文閱讀與搜尋 |
-| <kbd>Alt</kbd> + <kbd>T</kbd> | 開啟 / 關閉當前網頁沉浸式雙語翻譯 | 外語文章快速閱讀 |
-
----
-
-## 📂 專案檔案架構
-
-```
-brancy/
-├── manifest.json                  # Chrome Manifest V3 配置檔
-├── icons/                         # 擴充功能圖示 (16x16, 48x48, 128x128)
-├── background/
-│   ├── background.js              # Service Worker 訊息調度中心
-│   ├── translator.js              # Google 免費端點、Google API 與快取層
-│   └── openrouter.js              # OpenRouter AI 大模型客戶端與批次提示詞
-├── content/
-│   ├── common/
-│   │   ├── utils.js               # 時間格式化、設定儲存、防抖與語音合成
-│   │   └── dict.js                # 單字切詞器與線上英漢辭典查詢
-│   ├── youtube/
-│   │   ├── youtube-page-bridge.js # MAIN world 腳本：讀取 YouTube 原生字幕軌
-│   │   ├── youtube-captions.js    # 字幕下載、長句合併 (Sentence Segmentation)
-│   │   ├── youtube-sidebar.js     # Trancy 風格側邊欄、A-B 循環、匯出 SRT/VTT
-│   │   ├── youtube.js             # 播放器字幕渲染、YouTube 控制列按鈕與快捷鍵
-│   │   └── youtube.css            # YouTube 雙語字幕與側邊欄深色主題樣式
-│   └── webpage/
-│       ├── webpage.js             # 沉浸式網頁雙語翻譯 (Alt+T)
-│       ├── selection.js           # 劃詞即時查詞懸浮卡片
-│       ├── floating-ball.js       # 網頁右下角快捷操作小球
-│       └── webpage.css            # 網頁雙語對照排版與彈出氣泡樣式
-├── popup/
-│   ├── popup.html                 # 擴充功能彈出視窗 UI
-│   ├── popup.js                   # 快捷開關控制
-│   └── popup.css                  # 精緻現代暗色主題介面
-└── options/
-    ├── options.html               # 完整設定頁面 (API Key, 字體, 顏色, 預覽)
-    ├── options.js                 # 設定管理與 API 連線測試
-    └── options.css                # 雙欄式設定中心介面
-```
+右鍵選單與動態載入依照 [Chrome contextMenus API](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) 與 [scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)；翻譯串接參考 [Google Translation Basic](https://docs.cloud.google.com/translate/docs/basic/translating-text) 與 [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) 與 [串流協定](https://openrouter.ai/docs/api_reference/streaming)。

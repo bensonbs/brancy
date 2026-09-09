@@ -6,6 +6,11 @@
 (function () {
   let hasHooked = false;
 
+  function captionVideoId(url) {
+    try { return new URL(url, location.href).searchParams.get("v") || new URLSearchParams(location.search).get("v"); }
+    catch { return null; }
+  }
+
   function initHooks() {
     if (hasHooked) return;
     hasHooked = true;
@@ -13,9 +18,10 @@
     // 1. Hook window.fetch for timedtext requests
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
+      const url = typeof args[0] === "string" ? args[0] : args[0]?.url;
+      const videoId = captionVideoId(url);
       const response = await origFetch.apply(this, args);
       try {
-        const url = typeof args[0] === "string" ? args[0] : args[0]?.url;
         if (url && url.includes("/api/timedtext")) {
           const clone = response.clone();
           clone.text().then((rawText) => {
@@ -24,10 +30,11 @@
                 source: "BRANCY_PAGE_BRIDGE",
                 action: "NATIVE_TIMEDTEXT_CAPTURED",
                 rawText,
+                videoId,
                 url
               }, "*");
             }
-          });
+          }).catch(() => {});
         }
       } catch (e) {}
       return response;
@@ -39,6 +46,7 @@
 
     XMLHttpRequest.prototype.open = function (method, url, ...rest) {
       this._brancyUrl = typeof url === "string" ? url : "";
+      this._brancyVideoId = captionVideoId(this._brancyUrl);
       return origOpen.call(this, method, url, ...rest);
     };
 
@@ -51,6 +59,7 @@
                 source: "BRANCY_PAGE_BRIDGE",
                 action: "NATIVE_TIMEDTEXT_CAPTURED",
                 rawText: this.responseText,
+                videoId: this._brancyVideoId,
                 url: this._brancyUrl
               }, "*");
             }

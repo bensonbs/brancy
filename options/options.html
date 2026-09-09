@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Brancy 設定 - AI 雙語翻譯</title>
+  <link rel="stylesheet" href="../styles/base.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -11,32 +12,32 @@
     <!-- Sidebar Nav -->
     <aside class="ot-opt-sidebar">
       <div class="ot-opt-brand">
-        <div class="ot-opt-logo">B</div>
+        <div class="ot-opt-logo">b.</div>
         <div class="ot-opt-title-wrap">
-          <span class="ot-opt-title">Brancy</span>
-          <span class="ot-opt-version">v1.0.0</span>
+          <span class="ot-opt-title">brancy</span>
+          <span class="ot-opt-version">輕量雙語翻譯</span>
         </div>
       </div>
 
       <nav class="ot-opt-nav">
         <a href="#section-api" class="ot-nav-item active" data-target="section-api">
-          <span class="ot-nav-icon">🔑</span>
+
           <span>API 金鑰與模型</span>
         </a>
         <a href="#section-youtube" class="ot-nav-item" data-target="section-youtube">
-          <span class="ot-nav-icon">🎬</span>
+
           <span>YouTube 字幕樣式</span>
         </a>
         <a href="#section-web" class="ot-nav-item" data-target="section-web">
-          <span class="ot-nav-icon">🌐</span>
+
           <span>網頁雙語與劃詞</span>
         </a>
         <a href="#section-shortcuts" class="ot-nav-item" data-target="section-shortcuts">
-          <span class="ot-nav-icon">⌨️</span>
+
           <span>快捷鍵與操作</span>
         </a>
         <a href="#section-data" class="ot-nav-item" data-target="section-data">
-          <span class="ot-nav-icon">💾</span>
+
           <span>快取與資料管理</span>
         </a>
       </nav>
@@ -47,22 +48,22 @@
       <!-- Section 1: API Keys & Models -->
       <section id="section-api" class="ot-section active">
         <div class="ot-section-header">
-          <h2>API 金鑰與 AI 模型設定</h2>
-          <p>選擇預設翻譯引擎，並填入您自己的 OpenRouter 或 Google 翻譯金鑰。</p>
+          <h2>翻譯設定</h2>
+          <p>選一個翻譯引擎，開始自在閱讀。</p>
         </div>
 
         <div class="ot-card">
           <div class="ot-field">
-            <label class="ot-label">預設翻譯引擎</label>
+            <label class="ot-label" for="opt-engine">預設翻譯引擎</label>
             <select id="opt-engine" class="ot-input">
-              <option value="google_free">⚡ Google 免費端點（免填 Key，隨開即用）</option>
-              <option value="openrouter">🤖 OpenRouter AI（推薦：Gemini 2.5 Flash / DeepSeek）</option>
-              <option value="google_api">🌐 Google Cloud 官方 Translation API</option>
+              <option value="google_free">Google 翻譯 · 免金鑰</option>
+              <option value="openrouter">OpenRouter · 自訂模型</option>
+              <option value="google_api">Google 翻譯 · 官方 API</option>
             </select>
           </div>
 
           <div class="ot-field">
-            <label class="ot-label">目標語言</label>
+            <label class="ot-label" for="opt-target-lang">目標語言</label>
             <select id="opt-target-lang" class="ot-input">
               <option value="zh-TW">繁體中文 (Traditional Chinese, Taiwan/Hong Kong)</option>
               <option value="zh-CN">簡體中文 (Simplified Chinese)</option>
@@ -79,15 +80,15 @@
         <!-- OpenRouter Settings -->
         <div class="ot-card" id="card-openrouter">
           <div class="ot-card-title">
-            <span class="ot-badge-ai">AI</span>
-            <span>OpenRouter 專屬設定</span>
+
+            <span>OpenRouter</span>
           </div>
           <p class="ot-card-desc">
             支援所有主流大模型。前往 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter.ai</a> 取得您的 API Key。
           </p>
 
           <div class="ot-field">
-            <label class="ot-label">OpenRouter API Key</label>
+            <label class="ot-label" for="opt-openrouter-key">OpenRouter API Key</label>
             <div class="ot-input-group">
               <input type="password" id="opt-openrouter-key" class="ot-input" placeholder="sk-or-v1-..." />
               <button type="button" id="opt-toggle-key-view" class="ot-btn-secondary">顯示</button>
@@ -95,41 +96,31 @@
           </div>
 
           <div class="ot-field">
-            <label class="ot-label">選擇 AI 模型</label>
-            <select id="opt-openrouter-model-select" class="ot-input">
-              <option value="google/gemini-2.5-flash">google/gemini-2.5-flash (推薦：超快、極便宜、品質極佳)</option>
-              <option value="deepseek/deepseek-chat">deepseek/deepseek-chat (推薦：中文翻譯地道生動)</option>
-              <option value="openai/gpt-4o-mini">openai/gpt-4o-mini (穩定均衡)</option>
-              <option value="anthropic/claude-3.5-haiku">anthropic/claude-3.5-haiku (精緻語言細節)</option>
-              <option value="meta-llama/llama-3.3-70b-instruct">meta-llama/llama-3.3-70b-instruct</option>
-              <option value="custom">自訂模型名稱...</option>
-            </select>
-          </div>
-
-          <div class="ot-field hidden" id="field-custom-model">
-            <label class="ot-label">自訂模型 ID</label>
-            <input type="text" id="opt-custom-model" class="ot-input" placeholder="例如：mistralai/mistral-large" />
+            <label class="ot-label" for="opt-custom-model">模型名稱</label>
+            <input type="text" id="opt-custom-model" class="ot-input" placeholder="deepseek/deepseek-v4-flash-0731" spellcheck="false" autocomplete="off" aria-describedby="model-help" />
+            <p class="ot-card-desc" id="model-help">貼上完整的 <a href="https://openrouter.ai/models" target="_blank" rel="noopener">OpenRouter 模型 ID</a>，預填 DeepSeek，可自行修改。</p>
           </div>
 
           <div class="ot-field-row">
-            <button type="button" id="opt-test-openrouter" class="ot-btn-secondary">⚡ 測試 OpenRouter 連線</button>
-            <span id="opt-openrouter-test-result" class="ot-test-status"></span>
+            <a class="ot-btn-secondary ot-key-link" href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">取得 API Key ↗</a>
+            <button type="button" id="opt-test-openrouter" class="ot-btn-secondary">測試連線</button>
+            <span id="opt-openrouter-test-result" class="ot-test-status" role="status"></span>
           </div>
         </div>
 
         <!-- Google Cloud API Settings -->
         <div class="ot-card" id="card-google-api">
-          <div class="ot-card-title">Google Cloud 官方 API 設定 (選填)</div>
-          <p class="ot-card-desc">若您有 Google Cloud 專屬專案的 Translation API Key，可在此輸入。</p>
+          <div class="ot-card-title">Google 翻譯 API</div>
+          <p class="ot-card-desc">使用 Google Cloud Translation API 的金鑰。免金鑰模式不需要設定。</p>
 
           <div class="ot-field">
-            <label class="ot-label">Google API Key</label>
+            <label class="ot-label" for="opt-google-key">Google API Key</label>
             <input type="password" id="opt-google-key" class="ot-input" placeholder="AIzaSy..." />
           </div>
 
           <div class="ot-field-row">
             <button type="button" id="opt-test-google" class="ot-btn-secondary">測試 Google API 連線</button>
-            <span id="opt-google-test-result" class="ot-test-status"></span>
+            <span id="opt-google-test-result" class="ot-test-status" role="status"></span>
           </div>
         </div>
       </section>
@@ -137,13 +128,13 @@
       <!-- Section 2: YouTube Subtitles -->
       <section id="section-youtube" class="ot-section">
         <div class="ot-section-header">
-          <h2>YouTube 雙語字幕外觀與排版</h2>
+          <h2>字幕外觀</h2>
           <p>自訂影片內雙語字幕的字級、顏色、順序與背景風格。</p>
         </div>
 
         <div class="ot-card">
           <div class="ot-field">
-            <label class="ot-label">字幕排列順序</label>
+            <label class="ot-label" for="opt-sub-order">字幕排列順序</label>
             <select id="opt-sub-order" class="ot-input">
               <option value="target_first">目標翻譯在上，原始語言在下 (推薦)</option>
               <option value="origin_first">原始語言在上，目標翻譯在下</option>
@@ -151,26 +142,26 @@
           </div>
 
           <div class="ot-field">
-            <label class="ot-label">目標翻譯字體大小: <span id="val-font-size">20px</span></label>
+            <label class="ot-label" for="opt-font-size">目標翻譯字體大小: <span id="val-font-size">20px</span></label>
             <input type="range" id="opt-font-size" min="14" max="32" value="20" class="ot-range" />
           </div>
 
           <div class="ot-field">
-            <label class="ot-label">原始語言字體大小: <span id="val-origin-font-size">14px</span></label>
+            <label class="ot-label" for="opt-origin-font-size">原始語言字體大小: <span id="val-origin-font-size">14px</span></label>
             <input type="range" id="opt-origin-font-size" min="12" max="22" value="14" class="ot-range" />
           </div>
 
           <div class="ot-field">
-            <label class="ot-label">翻譯文字顏色</label>
+            <label class="ot-label" for="opt-sub-color">翻譯文字顏色</label>
             <input type="color" id="opt-sub-color" value="#ffffff" class="ot-color-picker" />
           </div>
 
           <div class="ot-field">
-            <label class="ot-label">字幕背景風格</label>
+            <label class="ot-label" for="opt-sub-bg">字幕背景風格</label>
             <select id="opt-sub-bg" class="ot-input">
-              <option value="rgba(0, 0, 0, 0.78)">經典深黑半透明 (推薦)</option>
+              <option value="rgba(0, 0, 0, 0.75)">經典深黑半透明 (推薦)</option>
               <option value="rgba(0, 0, 0, 0.92)">高對比純黑</option>
-              <option value="rgba(15, 23, 42, 0.85)">海軍深藍</option>
+              <option value="rgba(48, 48, 48, 0.85)">柔和深灰</option>
               <option value="rgba(0, 0, 0, 0.4)">極簡淡黑</option>
               <option value="transparent">無背景 (僅文字陰影)</option>
             </select>
@@ -192,15 +183,15 @@
       <!-- Section 3: Webpage Translation -->
       <section id="section-web" class="ot-section">
         <div class="ot-section-header">
-          <h2>網頁雙語沉浸式閱讀與劃詞翻譯</h2>
-          <p>控制一般網頁的雙語對照排版與劃詞懸浮氣泡。</p>
+          <h2>網頁閱讀</h2>
+          <p>在網頁按右鍵，選擇「Brancy：翻譯網頁／還原原文」。再次選擇即可還原原文。</p>
         </div>
 
         <div class="ot-card">
           <div class="ot-field-checkbox">
             <input type="checkbox" id="opt-web-selection" />
             <div>
-              <strong>開啟劃詞查詞懸浮氣泡</strong>
+              <label for="opt-web-selection">開啟劃詞查詞懸浮氣泡</label>
               <p class="ot-card-desc">選取單字或句子時，立即顯示音標、定義與翻譯。</p>
             </div>
           </div>
@@ -210,7 +201,7 @@
       <!-- Section 4: Shortcuts -->
       <section id="section-shortcuts" class="ot-section">
         <div class="ot-section-header">
-          <h2>快捷鍵列表與練習模式</h2>
+          <h2>快捷操作</h2>
           <p>學習語言時的高效快捷鍵操控。</p>
         </div>
 
@@ -218,7 +209,7 @@
           <div class="ot-field-checkbox">
             <input type="checkbox" id="opt-shortcuts-enabled" />
             <div>
-              <strong>啟用播放控制快捷鍵</strong>
+              <label for="opt-shortcuts-enabled">啟用快捷鍵</label>
               <p class="ot-card-desc">在 YouTube 觀看時使用下列按鍵快速切換句型（打字輸入時會自動忽略）。</p>
             </div>
           </div>
@@ -252,11 +243,6 @@
                 <td>開啟 / 關閉雙語字幕</td>
                 <td>盲聽測驗與對照</td>
               </tr>
-              <tr>
-                <td><kbd>Alt</kbd> + <kbd>T</kbd></td>
-                <td>開啟 / 關閉當前網頁雙語翻譯</td>
-                <td>閱讀外語長文或文件</td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -265,19 +251,19 @@
       <!-- Section 5: Data & Cache -->
       <section id="section-data" class="ot-section">
         <div class="ot-section-header">
-          <h2>快取與本機資料管理</h2>
+          <h2>資料管理</h2>
           <p>管理擴充功能在瀏覽器中儲存的翻譯快取與設定。</p>
         </div>
 
         <div class="ot-card">
           <div class="ot-card-title">翻譯記憶快取</div>
           <p class="ot-card-desc">
-            Brancy 會自動將翻譯過的 YouTube 影片字幕與網頁文字快取於瀏覽器本機中。同一部影片再次觀看時完全零延遲、且不會消耗任何 API 額度。
+            已翻譯的 YouTube 字幕會儲存在此瀏覽器。清除快取後，下次觀看將重新翻譯。
           </p>
 
           <div class="ot-field-row">
             <button type="button" id="opt-btn-clear-cache" class="ot-btn-danger">清空所有本機翻譯快取</button>
-            <span id="opt-cache-status" class="ot-test-status"></span>
+            <span id="opt-cache-status" class="ot-test-status" role="status"></span>
           </div>
         </div>
 
@@ -290,7 +276,7 @@
 
       <!-- Save Bar -->
       <div class="ot-save-bar">
-        <span id="ot-save-indicator" class="ot-save-indicator">變更已自動儲存</span>
+        <span role="status" id="ot-save-indicator" class="ot-save-indicator">設定會自動儲存</span>
       </div>
     </main>
   </div>

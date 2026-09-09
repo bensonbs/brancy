@@ -4,11 +4,12 @@
 
 import { translateSubtitleCues, translateWebTexts, lookupWordDetails } from "./translator.js";
 import { callOpenRouter } from "./openrouter.js";
+import { registerPageMenu } from "./page-translation.js";
 
 const DEFAULT_SETTINGS = {
   engine: "google_free", // "google_free" | "google_api" | "openrouter"
   openRouterKey: "",
-  openRouterModel: "google/gemini-2.5-flash",
+  openRouterModel: "deepseek/deepseek-v4-flash-0731",
   googleApiKey: "",
   targetLang: "zh-TW",
   youtubeSubtitleEnabled: true,
@@ -26,7 +27,16 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   console.log("[Brancy] Extension installed or updated:", details.reason);
   const current = await getSettings();
   const merged = { ...DEFAULT_SETTINGS, ...current };
+  // Upgrade the old bundled model while preserving user-entered model IDs.
+  if (details.reason === "update" && current.openRouterModel === "google/gemini-2.5-flash") {
+    merged.openRouterModel = DEFAULT_SETTINGS.openRouterModel;
+  }
   await chrome.storage.local.set(merged);
+  await registerPageMenu();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  registerPageMenu().catch(console.error);
 });
 
 function getSettings() {
@@ -97,7 +107,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (engine === "openrouter") {
             const reply = await callOpenRouter({
               apiKey: key,
-              model: model || "google/gemini-2.5-flash",
+              model,
               messages: [{ role: "user", content: "Reply with 'OK'" }]
             });
             return { success: true, reply };

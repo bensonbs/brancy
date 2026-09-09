@@ -5,7 +5,7 @@
 const DEFAULT_SETTINGS = {
   engine: "google_free", // "google_free" | "google_api" | "openrouter"
   openRouterKey: "",
-  openRouterModel: "google/gemini-2.5-flash",
+  openRouterModel: "deepseek/deepseek-v4-flash-0731",
   googleApiKey: "",
   targetLang: "zh-TW", // "zh-TW" | "zh-CN" | "en" | "ja" | "ko" | "es" | "fr" | "de"
   youtubeSubtitleEnabled: true,

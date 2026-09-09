@@ -23,10 +23,8 @@
   max-width: 85%;
   padding: 8px 18px;
   background-color: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(8px);
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   opacity: 0;
   transform: translateY(4px);
@@ -55,7 +53,7 @@
 }
 
 .ot-origin-line {
-  color: #e4e4e7;
+  color: #e4e4e4;
   font-weight: 400;
   opacity: 0.9;
 }
@@ -92,9 +90,8 @@
 
 .ot-ytp-btn.active .ot-ytp-badge {
   background: #ffffff;
-  color: #09090b;
+  color: #191919;
   border-color: transparent;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
 .ot-ytp-badge {
@@ -108,7 +105,7 @@
   letter-spacing: -0.5px;
 }
 /* Hide native YouTube captions when Brancy dual subtitles are active */
-.ytp-caption-window-bottom {
+.brancy-captions-active .ytp-caption-window-bottom {
   opacity: 0 !important;
   pointer-events: none !important;
 }

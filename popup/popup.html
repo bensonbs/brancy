@@ -4,93 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Brancy 雙語翻譯</title>
+  <link rel="stylesheet" href="../styles/base.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="ot-popup-container">
-    <!-- Header -->
+  <main class="ot-popup-container">
     <header class="ot-header">
-      <div class="ot-brand">
-        <div class="ot-logo">B</div>
-        <div class="ot-title-wrap">
-          <span class="ot-title">Brancy</span>
-          <span class="ot-subtitle">AI 雙語網頁與 YouTube</span>
-        </div>
-      </div>
-      <a href="#" id="ot-open-options" class="ot-icon-btn" title="進階設定">
-        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-      </a>
+      <div class="ot-brand"><div class="ot-logo" aria-hidden="true">b.</div><span class="ot-title">brancy</span></div>
+      <button id="ot-open-options" class="ot-icon-btn" aria-label="開啟設定" title="設定"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button>
     </header>
-
-    <!-- Main Config Card -->
-    <div class="ot-card">
-      <div class="ot-form-group">
-        <label for="ot-engine-select">翻譯引擎</label>
-        <select id="ot-engine-select" class="ot-select">
-          <option value="google_free">⚡ Google 免費端點 (免 Key)</option>
-          <option value="openrouter">🤖 OpenRouter AI (LLM)</option>
-          <option value="google_api">🌐 Google Cloud 官方 API</option>
-        </select>
-      </div>
-
-      <div id="ot-openrouter-hint" class="ot-hint-banner hidden">
-        <span id="ot-current-model">模型: google/gemini-2.5-flash</span>
-        <a href="#" id="ot-link-to-keys">填寫 API Key</a>
-      </div>
-
-      <div class="ot-form-group">
-        <label for="ot-lang-select">目標翻譯語言</label>
-        <select id="ot-lang-select" class="ot-select">
-          <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
-          <option value="zh-CN">簡體中文 (Simplified Chinese)</option>
-          <option value="en">English</option>
-          <option value="ja">日本語 (Japanese)</option>
-          <option value="ko">한국어 (Korean)</option>
-          <option value="es">Español (Spanish)</option>
-          <option value="fr">Français (French)</option>
-          <option value="de">Deutsch (German)</option>
-        </select>
-      </div>
+    <div class="ot-intro"><h1>讀懂，更多。</h1><p>讓語言簡單一點。</p></div>
+    <div class="ot-fields">
+      <div class="ot-form-group"><label for="ot-engine-select">翻譯引擎</label><select id="ot-engine-select"><option value="google_free">Google 翻譯 · 免金鑰</option><option value="google_api">Google 翻譯 · 官方 API</option><option value="openrouter">OpenRouter · 自訂模型</option></select></div>
+      <div id="ot-openrouter-hint" class="ot-hint-banner hidden"><span id="ot-current-model"></span><a href="#" id="ot-link-to-keys">設定</a></div>
+      <div class="ot-form-group"><label for="ot-lang-select">翻譯成</label><select id="ot-lang-select"><option value="zh-TW">繁體中文</option><option value="zh-CN">簡體中文</option><option value="en">English</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="es">Español</option><option value="fr">Français</option><option value="de">Deutsch</option></select></div>
     </div>
-
-    <!-- Quick Action: Translate Current Webpage -->
-    <button id="ot-btn-translate-page" class="ot-btn-primary">
-      <span class="ot-btn-icon">🌐</span>
-      <span id="ot-page-btn-text">雙語翻譯當前網頁 (Alt+T)</span>
-    </button>
-
-    <!-- Feature Switches -->
-    <div class="ot-card ot-switches-card">
-      <div class="ot-switch-row">
-        <div class="ot-switch-info">
-          <span class="ot-switch-title">YouTube 雙語字幕</span>
-          <span class="ot-switch-desc">影片播放時顯示雙語對照字幕 (熱鍵 E)</span>
-        </div>
-        <label class="ot-toggle">
-          <input type="checkbox" id="ot-sw-yt-subs">
-          <span class="ot-slider"></span>
-        </label>
-      </div>
-
-      <div class="ot-switch-row">
-        <div class="ot-switch-info">
-          <span class="ot-switch-title">劃詞即時查詞翻譯</span>
-          <span class="ot-switch-desc">選取單字顯示音標與釋義</span>
-        </div>
-        <label class="ot-toggle">
-          <input type="checkbox" id="ot-sw-selection">
-          <span class="ot-slider"></span>
-        </label>
-      </div>
+    <button id="ot-configure" class="ot-btn-primary"><span>翻譯設定</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
+    <p class="ot-shortcut-hint">在網頁按右鍵，即可翻譯或還原原文</p>
+    <div class="ot-switches">
+      <div class="ot-switch-row"><div><label for="ot-sw-yt-subs">YouTube 雙語字幕</label><p>影片中的雙語對照</p></div><label class="ot-toggle"><input type="checkbox" id="ot-sw-yt-subs" role="switch"><span class="ot-slider"></span></label></div>
+      <div class="ot-switch-row"><div><label for="ot-sw-selection">劃詞翻譯</label><p>選取文字，即時讀懂</p></div><label class="ot-toggle"><input type="checkbox" id="ot-sw-selection" role="switch"><span class="ot-slider"></span></label></div>
     </div>
-
-    <!-- Footer -->
-    <footer class="ot-footer">
-      <button id="ot-clear-cache" class="ot-footer-btn">清除翻譯快取</button>
-      <span class="ot-version">v1.0.0 • Open Source</span>
-    </footer>
-  </div>
-
+    <p id="ot-status" class="ot-status" role="status" hidden></p>
+    <footer class="ot-footer"><button id="ot-clear-cache">清除快取</button><span>簡單・輕量・開源</span></footer>
+  </main>
   <script src="popup.js"></script>
 </body>
 </html>

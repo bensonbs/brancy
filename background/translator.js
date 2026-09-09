@@ -2,10 +2,8 @@
  * Brancy Translation Service Dispatcher & Cache
  */
 
-import { translateSubtitlesWithOpenRouter, translateWebTextsWithOpenRouter, callOpenRouter } from "./openrouter.js";
+import { translateSubtitlesWithOpenRouter, translateWebTextsWithOpenRouter } from "./openrouter.js";
 
-// In-memory memory cache for fast lookups
-const memoryCache = new Map();
 
 /**
  * Free Google Translate Web Endpoint (client=dict-chrome-ex / gtx)
@@ -129,7 +127,7 @@ export async function translateGoogleCloudAPI({ apiKey, texts, targetLang = "zh-
   if (!texts || texts.length === 0) return [];
 
   const gTarget = targetLang === "zh-TW" ? "zh-TW" : targetLang === "zh-CN" ? "zh-CN" : targetLang;
-  const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey.trim()}`;
+  const url = `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(apiKey.trim())}`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -165,27 +163,20 @@ export async function translateSubtitleCues(cues, settings, videoId) {
 
   const targetLang = settings.targetLang || "zh-TW";
   let engine = settings.engine || "google_free";
-  const model = settings.openRouterModel || "google/gemini-2.5-flash";
+  const model = settings.openRouterModel || "deepseek/deepseek-v4-flash-0731";
 
-  // Auto fallback if key is missing
-  if (engine === "openrouter" && (!settings.openRouterKey || !settings.openRouterKey.trim())) {
-    console.warn("[Brancy] 未填寫 OpenRouter Key，字幕自動降級為 Google 免費翻譯");
-    engine = "google_free";
-  }
-  if (engine === "google_api" && (!settings.googleApiKey || !settings.googleApiKey.trim())) {
-    console.warn("[Brancy] 未填寫 Google API Key，字幕自動降級為 Google 免費翻譯");
-    engine = "google_free";
-  }
+  validateEngineSettings(settings);
 
   // Check storage cache
   const cacheKey = `sub_${videoId}_${targetLang}_${engine}_${engine === "openrouter" ? model : ""}`;
   const cached = await getFromStorage(cacheKey);
-  if (cached && Array.isArray(cached) && cached.length === cues.length) {
+  if (Array.isArray(cached) && cached.length === cues.length && cached.every((cue, i) =>
+    cue.text === cues[i].text && cue.start === cues[i].start && cue.end === cues[i].end)) {
     // Validate cache: ensure it actually contains translations and is not just English copied over
     const hasValidTranslation = cached.some(c => c.translation && c.translation.trim().toLowerCase() !== c.text.trim().toLowerCase());
     if (hasValidTranslation) {
       console.log("[Brancy] Subtitles loaded from cache:", cacheKey);
-      return cached;
+      return cues.map((cue, i) => ({ ...cue, translation: cached[i].translation }));
     } else {
       console.warn("[Brancy] Stale untranslated cache detected, discarding:", cacheKey);
       await removeFromStorage(cacheKey);
@@ -193,61 +184,16 @@ export async function translateSubtitleCues(cues, settings, videoId) {
   }
 
   let translatedCues = [];
-
   if (engine === "openrouter") {
-    try {
-      // Translate with OpenRouter in chunks of 25 sentences for best speed and accuracy
-      const CHUNK_SIZE = 25;
-      translatedCues = [];
-      
-      for (let i = 0; i < cues.length; i += CHUNK_SIZE) {
-        const chunk = cues.slice(i, i + CHUNK_SIZE);
-        const translatedChunk = await translateSubtitlesWithOpenRouter({
-          apiKey: settings.openRouterKey,
-          model: settings.openRouterModel,
-          cues: chunk,
-          targetLang
-        });
-        translatedCues.push(...translatedChunk);
-      }
-    } catch (err) {
-      console.warn("[Brancy] OpenRouter 字幕翻譯失敗，自動降級為 Google 免費端點:", err.message);
-      const texts = cues.map(c => c.text);
-      const translatedTexts = await translateBatchGoogleFree(texts, targetLang);
-      translatedCues = cues.map((cue, idx) => ({
-        ...cue,
-        translation: translatedTexts[idx] || cue.text
-      }));
-    }
-  } else if (engine === "google_api") {
-    try {
-      const texts = cues.map(c => c.text);
-      const translatedTexts = await translateGoogleCloudAPI({
-        apiKey: settings.googleApiKey,
-        texts,
-        targetLang
-      });
-      translatedCues = cues.map((cue, idx) => ({
-        ...cue,
-        translation: translatedTexts[idx] || cue.text
-      }));
-    } catch (err) {
-      console.warn("[Brancy] Google Cloud API 失敗，降級為 Google 免費端點:", err.message);
-      const texts = cues.map(c => c.text);
-      const translatedTexts = await translateBatchGoogleFree(texts, targetLang);
-      translatedCues = cues.map((cue, idx) => ({
-        ...cue,
-        translation: translatedTexts[idx] || cue.text
+    for (let i = 0; i < cues.length; i += 8) {
+      translatedCues.push(...await translateSubtitlesWithOpenRouter({
+        apiKey: settings.openRouterKey, model: settings.openRouterModel,
+        cues: cues.slice(i, i + 8), targetLang
       }));
     }
   } else {
-    // Default: google_free
-    const texts = cues.map(c => c.text);
-    const translatedTexts = await translateBatchGoogleFree(texts, targetLang);
-    translatedCues = cues.map((cue, idx) => ({
-      ...cue,
-      translation: translatedTexts[idx] || cue.text
-    }));
+    const translations = await translateWebTexts(cues.map(cue => cue.text), settings);
+    translatedCues = cues.map((cue, i) => ({ ...cue, translation: translations[i] || cue.text }));
   }
 
   // Save to storage cache asynchronously only if actual translations exist
@@ -262,49 +208,46 @@ export async function translateSubtitleCues(cues, settings, videoId) {
 /**
  * Translate general webpage texts (array of strings)
  */
+function validateEngineSettings(settings) {
+  if (settings.engine === "openrouter") {
+    if (!settings.openRouterKey?.trim()) throw new Error("請先在 Brancy 設定頁面填寫 OpenRouter API Key。");
+    if (!settings.openRouterModel?.trim()) throw new Error("請先在 Brancy 設定頁面輸入 OpenRouter 模型名稱。");
+  }
+  if (settings.engine === "google_api" && !settings.googleApiKey?.trim()) {
+    throw new Error("請先在 Brancy 設定頁面填寫 Google 翻譯 API Key。");
+  }
+}
+
 export async function translateWebTexts(texts, settings) {
-  if (!texts || texts.length === 0) return [];
-
+  if (!texts?.length) return [];
+  validateEngineSettings(settings);
   const targetLang = settings.targetLang || "zh-TW";
-  let engine = settings.engine || "google_free";
-
-  // Auto fallback if key is missing
-  if (engine === "openrouter" && (!settings.openRouterKey || !settings.openRouterKey.trim())) {
-    console.warn("[Brancy] 未填寫 OpenRouter Key，自動降級為 Google 免費翻譯");
-    engine = "google_free";
-  }
-  if (engine === "google_api" && (!settings.googleApiKey || !settings.googleApiKey.trim())) {
-    console.warn("[Brancy] 未填寫 Google API Key，自動降級為 Google 免費翻譯");
-    engine = "google_free";
-  }
-
-  if (engine === "openrouter") {
-    try {
-      return await translateWebTextsWithOpenRouter({
-        apiKey: settings.openRouterKey,
-        model: settings.openRouterModel,
-        texts,
-        targetLang
-      });
-    } catch (err) {
-      console.warn("[Brancy] OpenRouter 呼叫失敗，自動降級為 Google 免費翻譯:", err.message);
-      return await translateBatchGoogleFree(texts, targetLang);
+  if (settings.engine === "openrouter") {
+    const translated = [];
+    let batch = [], characters = 0;
+    const flush = async () => {
+      if (!batch.length) return;
+      translated.push(...await translateWebTextsWithOpenRouter({
+        apiKey: settings.openRouterKey, model: settings.openRouterModel, texts: batch, targetLang
+      }));
+      batch = []; characters = 0;
+    };
+    for (const text of texts) {
+      if (batch.length >= 8 || (batch.length && characters + text.length > 6000)) await flush();
+      batch.push(text); characters += text.length;
     }
-  } else if (engine === "google_api") {
-    try {
-      return await translateGoogleCloudAPI({
-        apiKey: settings.googleApiKey,
-        texts,
-        targetLang
-      });
-    } catch (err) {
-      console.warn("[Brancy] Google Cloud API 失敗，自動降級為 Google 免費翻譯:", err.message);
-      return await translateBatchGoogleFree(texts, targetLang);
-    }
-  } else {
-    // google_free
-    return await translateBatchGoogleFree(texts, targetLang);
+    await flush();
+    return translated;
   }
+  if (settings.engine === "google_api") {
+    const translated = [];
+    for (let i = 0; i < texts.length; i += 100) {
+      translated.push(...await translateGoogleCloudAPI({ apiKey: settings.googleApiKey,
+        texts: texts.slice(i, i + 100), targetLang }));
+    }
+    return translated;
+  }
+  return translateBatchGoogleFree(texts, targetLang);
 }
 
 /**
@@ -347,7 +290,7 @@ export async function lookupWordDetails(word, settings) {
   // Get translation of the word itself
   let translation = "";
   try {
-    translation = await translateSingleGoogleFree(cleanWord, targetLang);
+    [translation] = await translateWebTexts([cleanWord], settings);
   } catch (e) {
     translation = "";
   }

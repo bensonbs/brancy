@@ -13,61 +13,86 @@
 
   // Live caption observer variables
   let liveObserver = null;
-  let lastLiveText = "";
+  let liveCaption = null;
+  let liveRevision = 0;
+  let videoEvents = null;
+  let observedPlayer = null;
   let liveTranslateTimer = null;
 
   async function init() {
     settings = await BrancyUtils.getSettings();
     isSubtitleVisible = settings.youtubeSubtitleEnabled;
 
+    setupNavigationListener();
     setupVideoObserver();
     setupHotkeys();
-    setupNavigationListener();
-    setupLiveCaptionObserver();
 
     // Check if on a watch page right now
     checkAndLoadCaptions();
   }
 
   function setupNavigationListener() {
-    window.addEventListener("yt-navigate-finish", () => {
-      setTimeout(checkAndLoadCaptions, 800);
-    });
+    window.addEventListener("yt-navigate-start", resetPlayback);
+    window.addEventListener("yt-navigate-finish", checkAndLoadCaptions);
 
     window.addEventListener("brancy:cues-ready", (e) => {
+      if (e.detail.videoId !== lastVideoId || e.detail.videoId !== getVideoId()) return;
+      invalidateLiveCaption();
       cues = e.detail.cues || [];
       currentCueIndex = -1;
-      updateSubtitleDisplay();
+      if (videoEl) syncSubtitles(videoEl.currentTime, true);
     });
 
     // Listen for storage changes
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
-      chrome.storage.onChanged.addListener(async () => {
+      chrome.storage.onChanged.addListener(async (changes, area) => {
+        if (area !== "local" || !Object.keys(changes).some(key => key.startsWith("youtube") || key === "shortcutsEnabled")) return;
         settings = await BrancyUtils.getSettings();
         isSubtitleVisible = settings.youtubeSubtitleEnabled;
         applySubtitleStyles();
+        if (!isSubtitleVisible) invalidateLiveCaption();
       });
     }
   }
 
+  function getVideoId() {
+    return new URLSearchParams(window.location.search).get("v");
+  }
+
+  function invalidateLiveCaption() {
+    clearTimeout(liveTranslateTimer);
+    liveRevision++;
+    liveCaption = null;
+  }
+
+  function resetPlayback() {
+    invalidateLiveCaption();
+    cues = [];
+    currentCueIndex = -1;
+    lastVideoId = null;
+    renderLines("", "");
+  }
+
   function checkAndLoadCaptions() {
-    const params = new URLSearchParams(window.location.search);
-    const videoId = params.get("v");
+    const videoId = getVideoId();
     if (!videoId) {
+      resetPlayback();
       removeSubtitleContainer();
       return;
     }
-
+    ensureSubtitleContainer();
+    injectPlayerControls();
+    setupLiveCaptionObserver();
     if (videoId !== lastVideoId) {
+      resetPlayback();
       lastVideoId = videoId;
-      cues = [];
-      currentCueIndex = -1;
-      lastLiveText = "";
-      ensureSubtitleContainer();
-      injectPlayerControls();
       ensureNativeCcEnabled();
-
-      BrancyCaptions.fetchCaptionsForCurrentVideo();
+      Promise.resolve(BrancyCaptions.fetchCaptionsForCurrentVideo()).then(loaded => {
+        if (videoId !== lastVideoId || videoId !== getVideoId() || cues.length || !loaded?.length) return;
+        invalidateLiveCaption();
+        cues = loaded;
+        if (videoEl) syncSubtitles(videoEl.currentTime, true);
+      }).catch(error => console.warn("[Brancy] Could not load caption track:", error));
     }
   }
 
@@ -80,101 +105,103 @@
 
   function setupVideoObserver() {
     const findVideo = () => {
-      const v = document.querySelector("video");
-      if (v && v !== videoEl) {
-        videoEl = v;
-        bindVideoEvents();
+      const player = document.getElementById("movie_player");
+      const video = player?.querySelector("video.html5-main-video") || player?.querySelector("video") || null;
+      if (video !== videoEl) {
+        videoEvents?.abort();
+        invalidateLiveCaption();
+        renderLines("", "");
+        videoEl = video;
+        currentCueIndex = -1;
+        if (videoEl) bindVideoEvents();
       }
+      if (getVideoId()) checkAndLoadCaptions();
     };
-
     findVideo();
-    const observer = new MutationObserver(BrancyUtils.debounce(findVideo, 500));
+    const observer = new MutationObserver(BrancyUtils.debounce(findVideo, 100));
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function bindVideoEvents() {
-    if (!videoEl) return;
-
-    videoEl.addEventListener("timeupdate", () => {
-      const time = videoEl.currentTime;
-      syncSubtitles(time);
+    const video = videoEl;
+    videoEvents = new AbortController();
+    const listen = (name, handler) => video.addEventListener(name, handler, { signal: videoEvents.signal });
+    const sync = () => {
+      if (video !== videoEl || getVideoId() !== lastVideoId) return;
+      if (cues.length) syncSubtitles(video.currentTime);
+      else readLiveCaption();
+    };
+    listen("timeupdate", sync);
+    listen("play", sync);
+    listen("pause", () => {
+      clearTimeout(liveTranslateTimer);
+      if (liveCaption && !liveCaption.requested) liveCaption = null;
+      if (cues.length) syncSubtitles(video.currentTime);
     });
-
-    videoEl.addEventListener("seeking", () => {
-      const time = videoEl.currentTime;
-      syncSubtitles(time);
+    listen("seeking", () => {
+      invalidateLiveCaption();
+      if (cues.length) syncSubtitles(video.currentTime);
+      else renderLines("", "");
     });
+    listen("seeked", () => {
+      if (cues.length) syncSubtitles(video.currentTime);
+      else readLiveCaption(true);
+    });
+    listen("emptied", () => { invalidateLiveCaption(); renderLines("", ""); });
+    listen("ended", () => { invalidateLiveCaption(); renderLines("", ""); });
+    sync();
   }
 
-  /**
-   * Live DOM Caption Observer:
-   * Captures on-screen caption segments in real time from .ytp-caption-segment.
-   * Guarantees bilingual subtitles even if network timedtext fetch was blocked!
-   */
+  function nativeCaptionText() {
+    return Array.from(observedPlayer?.querySelectorAll(".ytp-caption-segment") || [])
+      .map(segment => segment.textContent || "").join(" ").replace(/\s+/g, " ").trim();
+  }
+
   function setupLiveCaptionObserver() {
-    if (liveObserver) return;
+    const player = document.getElementById("movie_player");
+    if (!player || (liveObserver && observedPlayer === player)) return;
+    liveObserver?.disconnect();
+    observedPlayer = player;
+    liveObserver = new MutationObserver(() => readLiveCaption());
+    liveObserver.observe(player, { childList: true, subtree: true, characterData: true });
+  }
 
-    const observeCaptions = () => {
-      const player = document.getElementById("movie_player") || document.body;
-      liveObserver = new MutationObserver(() => {
-        // If full pre-fetched cues are already loaded and working, prefer them
-        if (cues && cues.length > 0) return;
+  function readLiveCaption(afterSeek = false) {
+    if (cues.length || !videoEl || !isSubtitleVisible || !lastVideoId || getVideoId() !== lastVideoId) return;
+    // Pausing freezes the current live caption. Late network responses and DOM
+    // mutations cannot advance it. Seeking while paused may select a new caption.
+    if (videoEl.seeking || (videoEl.paused && !afterSeek)) return;
+    const text = nativeCaptionText();
+    if (!text) {
+      invalidateLiveCaption();
+      renderLines("", "");
+      return;
+    }
+    if (liveCaption?.text === text) {
+      if (liveCaption.translation) renderLines(liveCaption.translation, text);
+      return;
+    }
+    invalidateLiveCaption();
+    const snapshot = liveCaption = { text, video: videoEl, videoId: lastVideoId,
+      revision: liveRevision, translation: "", requested: false };
+    renderLines("", text);
+    liveTranslateTimer = setTimeout(async () => {
+      if (!isCurrentLiveCaption(snapshot)) return;
+      snapshot.requested = true;
+      try {
+        const response = await BrancyUtils.sendMessageToBackground({ action: "TRANSLATE_TEXTS", texts: [text] });
+        if (!isCurrentLiveCaption(snapshot)) return;
+        snapshot.translation = response?.success && typeof response.data?.[0] === "string" ? response.data[0] : "";
+        if (!videoEl.paused) renderLines(snapshot.translation, text);
+      } catch { /* Keep the original caption when translation is unavailable. */ }
+    }, 80);
+  }
 
-        const segments = document.querySelectorAll(".ytp-caption-segment");
-        if (!segments || segments.length === 0) {
-          if (subtitleContainer && !cues.length) {
-            subtitleContainer.querySelector(".ot-sub-box")?.classList.remove("visible");
-          }
-          return;
-        }
-
-        const fullText = Array.from(segments)
-          .map(s => s.textContent || "")
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        if (!fullText || fullText === lastLiveText) return;
-        lastLiveText = fullText;
-
-        clearTimeout(liveTranslateTimer);
-        liveTranslateTimer = setTimeout(async () => {
-          const currentText = fullText;
-          try {
-            const res = await BrancyUtils.sendMessageToBackground({
-              action: "TRANSLATE_TEXTS",
-              texts: [currentText]
-            });
-            const trans = res?.success && res?.data?.[0] ? res.data[0] : "";
-
-            // Display on bilingual overlay
-            if (subtitleContainer && isSubtitleVisible) {
-              const targetLine = subtitleContainer.querySelector(".ot-target-line");
-              const originLine = subtitleContainer.querySelector(".ot-origin-line");
-              const box = subtitleContainer.querySelector(".ot-sub-box");
-              if (targetLine && originLine && box) {
-                const cleanOrig = currentText.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
-                const cleanTrans = (trans || "").replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
-
-                if (cleanTrans && cleanTrans !== cleanOrig) {
-                  targetLine.textContent = trans;
-                  targetLine.style.display = "";
-                } else {
-                  targetLine.textContent = "";
-                  targetLine.style.display = "none";
-                }
-                originLine.textContent = currentText;
-                box.classList.add("visible");
-              }
-            }
-          } catch (e) {}
-        }, 80);
-      });
-
-      liveObserver.observe(player, { childList: true, subtree: true, characterData: true });
-    };
-
-    observeCaptions();
+  function isCurrentLiveCaption(snapshot) {
+    return snapshot === liveCaption && snapshot.revision === liveRevision &&
+      snapshot.video === videoEl && snapshot.videoId === getVideoId() &&
+      snapshot.videoId === lastVideoId && !cues.length && !videoEl.seeking &&
+      isSubtitleVisible && nativeCaptionText() === snapshot.text;
   }
 
   function ensureSubtitleContainer() {
@@ -195,11 +222,13 @@
       `;
       player.appendChild(subtitleContainer);
       applySubtitleStyles();
+      if (videoEl && cues.length) syncSubtitles(videoEl.currentTime, true);
     }
   }
 
   function removeSubtitleContainer() {
     if (subtitleContainer) {
+      subtitleContainer.parentElement?.classList.remove("brancy-captions-active");
       subtitleContainer.remove();
       subtitleContainer = null;
     }
@@ -228,47 +257,38 @@
     }
 
     subtitleContainer.style.display = isSubtitleVisible ? "flex" : "none";
+    subtitleContainer.parentElement?.classList.toggle("brancy-captions-active", isSubtitleVisible);
   }
 
-  function syncSubtitles(currentTime) {
+  function syncSubtitles(currentTime, force = false) {
     if (!cues || cues.length === 0) return;
 
-    const index = cues.findIndex(c => currentTime >= c.start && currentTime <= c.end);
-    if (index !== currentCueIndex) {
+    // In overlapping auto-caption windows, the most recently started cue wins.
+    const index = cues.findLastIndex(c => currentTime >= c.start && currentTime < c.end);
+    if (force || index !== currentCueIndex) {
       currentCueIndex = index;
       updateSubtitleDisplay();
     }
   }
 
   function updateSubtitleDisplay() {
-    if (!subtitleContainer) return;
+    const cue = cues[currentCueIndex];
+    renderLines(cue?.translation || "", cue?.text || "");
+  }
 
+  function renderLines(translation, original) {
+    if (!subtitleContainer) return;
+    const box = subtitleContainer.querySelector(".ot-sub-box");
     const targetLine = subtitleContainer.querySelector(".ot-target-line");
     const originLine = subtitleContainer.querySelector(".ot-origin-line");
-    const box = subtitleContainer.querySelector(".ot-sub-box");
-
-    if (currentCueIndex === -1 || !cues[currentCueIndex]) {
-      box.classList.remove("visible");
-      return;
-    }
-
-    const cue = cues[currentCueIndex];
-    const trans = cue.translation ? cue.translation.trim() : "";
-    const orig = cue.text ? cue.text.trim() : "";
-
-    const cleanOrig = orig.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
-    const cleanTrans = trans.replace(/[\s\uFEFF\xA0]+/g, "").toLowerCase();
-
-    if (cleanTrans && cleanTrans !== cleanOrig) {
-      targetLine.textContent = trans;
-      targetLine.style.display = "";
-    } else {
-      targetLine.textContent = "";
-      targetLine.style.display = "none";
-    }
-
-    originLine.textContent = orig;
-    box.classList.add("visible");
+    const trans = translation.trim(), orig = original.trim();
+    const normalize = text => text.replace(/\s+/g, "").toLowerCase();
+    const target = normalize(trans) !== normalize(orig) ? trans : "";
+    // Avoid retriggering our observer for an unchanged subtitle.
+    if (targetLine.textContent !== target) targetLine.textContent = target;
+    if (originLine.textContent !== orig) originLine.textContent = orig;
+    targetLine.style.display = target ? "" : "none";
+    box.classList.toggle("visible", Boolean(orig));
   }
 
   /**
@@ -298,6 +318,12 @@
     isSubtitleVisible = typeof force === "boolean" ? force : !isSubtitleVisible;
     if (subtitleContainer) {
       subtitleContainer.style.display = isSubtitleVisible ? "flex" : "none";
+    }
+    subtitleContainer?.parentElement?.classList.toggle("brancy-captions-active", isSubtitleVisible);
+    invalidateLiveCaption();
+    if (isSubtitleVisible) {
+      if (cues.length && videoEl) syncSubtitles(videoEl.currentTime, true);
+      else readLiveCaption();
     }
     const btn = document.getElementById("ot-ytp-sub-toggle");
     if (btn) btn.classList.toggle("active", isSubtitleVisible);

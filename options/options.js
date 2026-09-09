@@ -24,8 +24,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const optTargetLang = document.getElementById("opt-target-lang");
   const optOpenRouterKey = document.getElementById("opt-openrouter-key");
   const optToggleKeyView = document.getElementById("opt-toggle-key-view");
-  const optModelSelect = document.getElementById("opt-openrouter-model-select");
-  const fieldCustomModel = document.getElementById("field-custom-model");
   const optCustomModel = document.getElementById("opt-custom-model");
   const optGoogleKey = document.getElementById("opt-google-key");
 
@@ -70,22 +68,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     optOpenRouterKey.value = s.openRouterKey || "";
     optGoogleKey.value = s.googleApiKey || "";
 
-    // Model selection
-    const standardModels = [
-      "google/gemini-2.5-flash",
-      "deepseek/deepseek-chat",
-      "openai/gpt-4o-mini",
-      "anthropic/claude-3.5-haiku",
-      "meta-llama/llama-3.3-70b-instruct"
-    ];
-    if (standardModels.includes(s.openRouterModel)) {
-      optModelSelect.value = s.openRouterModel;
-      fieldCustomModel.classList.add("hidden");
-    } else if (s.openRouterModel) {
-      optModelSelect.value = "custom";
-      optCustomModel.value = s.openRouterModel;
-      fieldCustomModel.classList.remove("hidden");
-    }
+    optCustomModel.value = s.openRouterModel ?? "deepseek/deepseek-v4-flash-0731";
+    updateEngineCards();
 
     optSubOrder.value = s.youtubePrimaryOrder || "target_first";
     optFontSize.value = s.youtubeFontSize || 20;
@@ -93,10 +77,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     optOriginFontSize.value = s.youtubeOriginFontSize || 14;
     valOriginFontSize.textContent = `${optOriginFontSize.value}px`;
     optSubColor.value = s.youtubeSubColor || "#ffffff";
-    optSubBg.value = s.youtubeSubBg || "rgba(0, 0, 0, 0.78)";
+    optSubBg.value = s.youtubeSubBg || "rgba(0, 0, 0, 0.75)";
 
     optWebSelection.checked = !!s.webSelectionEnabled;
     optShortcutsEnabled.checked = !!s.shortcutsEnabled;
+  }
+
+  function updateEngineCards() {
+    document.getElementById("card-openrouter").hidden = optEngine.value !== "openrouter";
+    document.getElementById("card-google-api").hidden = optEngine.value !== "google_api";
   }
 
   function updatePreview() {
@@ -109,16 +98,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function save() {
-    let chosenModel = optModelSelect.value;
-    if (chosenModel === "custom") {
-      chosenModel = optCustomModel.value.trim() || "google/gemini-2.5-flash";
-    }
-
     const updated = {
       engine: optEngine.value,
       targetLang: optTargetLang.value,
       openRouterKey: optOpenRouterKey.value.trim(),
-      openRouterModel: chosenModel,
+      openRouterModel: optCustomModel.value.trim(),
       googleApiKey: optGoogleKey.value.trim(),
       youtubePrimaryOrder: optSubOrder.value,
       youtubeFontSize: parseInt(optFontSize.value, 10),
@@ -129,10 +113,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       shortcutsEnabled: optShortcutsEnabled.checked
     };
 
-    await chrome.runtime.sendMessage({
-      action: "SAVE_SETTINGS",
-      settings: updated
-    });
+    try {
+      const response = await chrome.runtime.sendMessage({ action: "SAVE_SETTINGS", settings: updated });
+      if (!response?.success) throw new Error(response?.error || "儲存失敗");
+    } catch (error) {
+      saveIndicator.textContent = `未儲存：${error.message}`;
+      return;
+    }
 
     saveIndicator.style.opacity = "1";
     saveIndicator.textContent = "變更已自動儲存 ✓";
@@ -145,6 +132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   [optEngine, optTargetLang, optSubOrder, optSubBg, optWebSelection, optShortcutsEnabled].forEach(el => {
     el.addEventListener("change", () => {
       save();
+      updateEngineCards();
       updatePreview();
     });
   });
@@ -170,15 +158,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     save();
   });
 
-  optModelSelect.addEventListener("change", () => {
-    if (optModelSelect.value === "custom") {
-      fieldCustomModel.classList.remove("hidden");
-    } else {
-      fieldCustomModel.classList.add("hidden");
-    }
-    save();
-  });
-
   // Toggle key visibility
   optToggleKeyView.addEventListener("click", () => {
     if (optOpenRouterKey.type === "password") {
@@ -190,6 +169,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  async function safeRequest(message) {
+    try { return await chrome.runtime.sendMessage(message); }
+    catch (error) { return { success: false, error: error.message }; }
+  }
+
   // Test OpenRouter connection
   testOpenRouterBtn.addEventListener("click", async () => {
     const key = optOpenRouterKey.value.trim();
@@ -199,19 +183,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    let model = optModelSelect.value;
-    if (model === "custom") model = optCustomModel.value.trim();
+    const model = optCustomModel.value.trim();
+    if (!model) {
+      openRouterStatus.className = "ot-test-status error";
+      openRouterStatus.textContent = "請先輸入模型名稱。";
+      return;
+    }
 
+    testOpenRouterBtn.disabled = true;
     openRouterStatus.className = "ot-test-status loading";
     openRouterStatus.textContent = "連線測試中...";
 
     const startTime = Date.now();
-    const res = await chrome.runtime.sendMessage({
+    const res = await safeRequest({
       action: "TEST_API_KEY",
       engine: "openrouter",
       key,
       model
     });
+    testOpenRouterBtn.disabled = false;
     const duration = Date.now() - startTime;
 
     if (res && res.success) {
@@ -232,15 +222,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    testGoogleBtn.disabled = true;
     googleStatus.className = "ot-test-status loading";
     googleStatus.textContent = "連線測試中...";
 
-    const res = await chrome.runtime.sendMessage({
+    const res = await safeRequest({
       action: "TEST_API_KEY",
       engine: "google_api",
       key
     });
 
+    testGoogleBtn.disabled = false;
     if (res && res.success) {
       googleStatus.className = "ot-test-status success";
       googleStatus.textContent = "Google API 連線成功！";
@@ -252,7 +244,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Clear cache
   clearCacheBtn.addEventListener("click", async () => {
-    const res = await chrome.runtime.sendMessage({ action: "CLEAR_CACHE" });
+    const res = await safeRequest({ action: "CLEAR_CACHE" });
     cacheStatus.className = "ot-test-status success";
     cacheStatus.textContent = `已清除 ${res?.count || 0} 筆本機快取！`;
     setTimeout(() => (cacheStatus.textContent = ""), 3000);
