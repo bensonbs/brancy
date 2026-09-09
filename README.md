@@ -18,19 +18,13 @@
 
 ## 範例展示
 
-### Google 先暫譯，OpenRouter 自動補譯
-
-左側先顯示 Google 暫譯，右側呈現 OpenRouter 補譯完成後的同一段內容。有設定 OpenRouter 就會自動執行第二次翻譯，無須額外點擊。
-
-![同一篇示範文章：左側為 Google 暫譯與補譯中提示，右側已更新為 OpenRouter 譯文](docs/images/translation-stages.png)
-
 ### YouTube 字幕與評論
 
 字幕依影片時間同步；右鍵翻譯評論後，譯文顯示在每則原文下方，保留閱讀脈絡。
 
 ![YouTube 示範：影片顯示雙語字幕，右側評論在原文下方顯示 OpenRouter 譯文](docs/images/youtube-demo.png)
 
-展示圖片由實際擴充功能介面渲染；文章、影片場景、評論與翻譯使用示範資料，並非真實 API 翻譯結果。
+展示圖片由實際擴充功能介面渲染；影片場景、評論與翻譯使用示範資料，並非真實 API 翻譯結果。
 
 ## 使用方式
 
