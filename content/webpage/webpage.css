@@ -18,7 +18,7 @@
   100% {
     transform: scale(1.18);
     opacity: 1;
-    filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.8));
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
   }
 }
 
@@ -41,11 +41,11 @@
   gap: 10px;
   margin: 6px 0 14px 0;
   padding: 8px 14px;
-  background: rgba(99, 102, 241, 0.07);
-  border-left: 3px solid #6366f1;
+  background: rgba(0, 0, 0, 0.04);
+  border-left: 3px solid #27272a;
   border-radius: 0 6px 6px 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
-  color: #3730a3;
+  color: #18181b;
   font-size: 0.95em;
   line-height: 1.55;
   transition: background 0.15s ease, border-color 0.2s ease;
@@ -54,8 +54,8 @@
 
 /* Shimmer Loading State for Paragraph (正在翻譯中的滑動閃爍骨架) */
 .brancy-web-trans.ot-shimmer-loading {
-  background: rgba(99, 102, 241, 0.04);
-  border-left: 3px solid #a855f7;
+  background: rgba(0, 0, 0, 0.03);
+  border-left: 3px solid #71717a;
   padding: 10px 14px;
   align-items: center;
 }
@@ -67,16 +67,14 @@
   gap: 7px;
 }
 
-/* Shimmer Bar (流光條) */
+/* Shimmer Bar (流光條 - 黑白灰色系) */
 .ot-shimmer-bar {
   border-radius: 4px;
   background: linear-gradient(
     90deg,
-    rgba(99, 102, 241, 0.10) 0%,
-    rgba(168, 85, 247, 0.35) 45%,
-    rgba(236, 72, 153, 0.25) 55%,
-    rgba(168, 85, 247, 0.35) 65%,
-    rgba(99, 102, 241, 0.10) 100%
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.18) 50%,
+    rgba(0, 0, 0, 0.05) 100%
   );
   background-size: 250% 100%;
   animation: brancy-shimmer 1.6s infinite ease-in-out;
@@ -99,11 +97,11 @@
   gap: 5px;
   padding: 3px 9px;
   border-radius: 12px;
-  background: rgba(168, 85, 247, 0.12);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.15);
   font-size: 11px;
   font-weight: 600;
-  color: #9333ea;
+  color: #27272a;
   white-space: nowrap;
 }
 
@@ -120,34 +118,32 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .brancy-web-trans {
-    background: rgba(99, 102, 241, 0.15);
-    color: #c7d2fe;
-    border-left-color: #818cf8;
+    background: rgba(255, 255, 255, 0.06);
+    color: #f4f4f5;
+    border-left-color: #d4d4d8;
   }
   .brancy-web-trans.ot-shimmer-loading {
-    background: rgba(99, 102, 241, 0.08);
-    border-left-color: #c084fc;
+    background: rgba(255, 255, 255, 0.04);
+    border-left-color: #a1a1aa;
   }
   .ot-shimmer-bar {
     background: linear-gradient(
       90deg,
       rgba(255, 255, 255, 0.05) 0%,
-      rgba(168, 85, 247, 0.40) 45%,
-      rgba(236, 72, 153, 0.30) 55%,
-      rgba(168, 85, 247, 0.40) 65%,
+      rgba(255, 255, 255, 0.20) 50%,
       rgba(255, 255, 255, 0.05) 100%
     );
     background-size: 250% 100%;
   }
   .ot-shimmer-badge {
-    background: rgba(168, 85, 247, 0.2);
-    border-color: rgba(168, 85, 247, 0.4);
-    color: #d8b4fe;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #e4e4e7;
   }
 }
 
 .brancy-web-trans:hover {
-  background: rgba(99, 102, 241, 0.12);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .ot-web-trans-content {
@@ -174,7 +170,7 @@
   padding: 2px 5px;
   border-radius: 4px;
   font-size: 13px;
-  color: #4b5563;
+  color: #52525b;
   transition: all 0.12s;
 }
 
@@ -188,14 +184,14 @@
   position: absolute;
   z-index: 2147483645;
   width: 320px;
-  background: rgba(18, 18, 24, 0.96);
+  background: rgba(20, 20, 20, 0.96);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
   padding: 12px 14px;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", sans-serif;
-  color: #f1f5f9;
+  color: #f4f4f5;
   animation: ot-popup-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -244,14 +240,14 @@
 .ot-popup-label {
   font-size: 11px;
   font-weight: 600;
-  color: #818cf8;
+  color: #a1a1aa;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .ot-popup-phonetic {
   font-size: 12px;
-  color: #a5b4fc;
+  color: #a1a1aa;
 }
 
 .ot-popup-btn {
@@ -262,7 +258,7 @@
   padding: 2px 4px;
   border-radius: 4px;
   margin-left: auto;
-  color: #94a3b8;
+  color: #a1a1aa;
   transition: all 0.12s;
 }
 
@@ -273,7 +269,7 @@
 
 .ot-popup-trans {
   font-size: 14px;
-  color: #38bdf8;
+  color: #ffffff;
   font-weight: 600;
   line-height: 1.4;
   margin-bottom: 6px;
@@ -281,7 +277,7 @@
 
 .ot-popup-orig {
   font-size: 12px;
-  color: #94a3b8;
+  color: #a1a1aa;
   line-height: 1.35;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 6px;
@@ -299,20 +295,20 @@
 
 .ot-popup-def {
   font-size: 12px;
-  color: #cbd5e1;
+  color: #d4d4d8;
   line-height: 1.35;
 }
 
 .ot-popup-pos {
   font-style: italic;
   font-weight: 600;
-  color: #c084fc;
+  color: #a1a1aa;
   margin-right: 4px;
 }
 
 .ot-popup-error {
   font-size: 12px;
-  color: #fca5a5;
+  color: #e4e4e7;
   padding: 4px 0;
 }
 
@@ -330,7 +326,8 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -338,13 +335,14 @@
   font-weight: 800;
   font-size: 18px;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background 0.15s;
 }
 
 .ot-ball-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+  transform: scale(1.08);
+  background: #27272a;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
 }
 
 .ot-ball-menu {
@@ -357,7 +355,7 @@
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
-  color: #f1f5f9;
+  color: #f4f4f5;
   animation: ot-popup-in 0.16s ease;
 }
 
@@ -368,7 +366,7 @@
 .ot-ball-menu-header {
   font-size: 11px;
   font-weight: 700;
-  color: #94a3b8;
+  color: #a1a1aa;
   padding: 6px 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -380,7 +378,7 @@
   gap: 8px;
   padding: 8px 10px;
   font-size: 13px;
-  color: #e2e8f0;
+  color: #e4e4e7;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s;
@@ -403,9 +401,9 @@
   left: 50%;
   bottom: 30px;
   transform: translateX(-50%) translateY(20px);
-  background: rgba(18, 18, 24, 0.92);
+  background: rgba(20, 20, 20, 0.92);
   backdrop-filter: blur(10px);
-  color: #f1f5f9;
+  color: #f4f4f5;
   border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 10px 20px;
   border-radius: 20px;

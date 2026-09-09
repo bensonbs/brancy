@@ -134,14 +134,10 @@
         <div class="ot-popup-header">
           <div class="ot-popup-word">${BrancyUtils.escapeHtml(data.word)}</div>
           ${data.phonetic ? `<div class="ot-popup-phonetic">[${BrancyUtils.escapeHtml(data.phonetic)}]</div>` : ""}
-          <button class="ot-popup-btn" id="ot-popup-speak" title="朗讀">🔊</button>
-          <button class="ot-popup-btn" id="ot-popup-copy" title="複製">📋</button>
         </div>
         <div class="ot-popup-trans">${BrancyUtils.escapeHtml(data.translation || "")}</div>
         ${meaningsHtml ? `<div class="ot-popup-meanings">${meaningsHtml}</div>` : ""}
       `;
-
-      bindPopupActions(data.word, data.translation);
     } catch (err) {
       renderError(err.message);
     }
@@ -163,32 +159,13 @@
       popupEl.innerHTML = `
         <div class="ot-popup-header">
           <span class="ot-popup-label">Brancy 翻譯</span>
-          <button class="ot-popup-btn" id="ot-popup-speak" title="朗讀">🔊</button>
-          <button class="ot-popup-btn" id="ot-popup-copy" title="複製">📋</button>
         </div>
         <div class="ot-popup-trans">${BrancyUtils.escapeHtml(translation)}</div>
         <div class="ot-popup-orig">${BrancyUtils.escapeHtml(text)}</div>
       `;
-
-      bindPopupActions(text, translation);
     } catch (err) {
       renderError(err.message);
     }
-  }
-
-  function bindPopupActions(text, translation) {
-    popupEl.querySelector("#ot-popup-speak")?.addEventListener("click", () => {
-      BrancyUtils.speakText(text);
-    });
-
-    popupEl.querySelector("#ot-popup-copy")?.addEventListener("click", () => {
-      navigator.clipboard.writeText(`${text}\n${translation || ""}`);
-      const btn = popupEl.querySelector("#ot-popup-copy");
-      if (btn) {
-        btn.textContent = "✓";
-        setTimeout(() => (btn.textContent = "📋"), 1500);
-      }
-    });
   }
 
   function renderError(msg) {

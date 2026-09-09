@@ -249,15 +249,10 @@ class YouTubeSidebar {
       <div class="ot-tooltip-header">
         <span class="ot-tooltip-word">${BrancyUtils.escapeHtml(data.word)}</span>
         ${data.phonetic ? `<span class="ot-tooltip-phonetic">[${BrancyUtils.escapeHtml(data.phonetic)}]</span>` : ""}
-        <button class="ot-tooltip-audio-btn" title="朗讀">🔊</button>
       </div>
       <div class="ot-tooltip-trans">${BrancyUtils.escapeHtml(data.translation || "")}</div>
       ${meaningsHtml ? `<div class="ot-tooltip-meanings">${meaningsHtml}</div>` : ""}
     `;
-
-    this.tooltipEl.querySelector(".ot-tooltip-audio-btn")?.addEventListener("click", () => {
-      BrancyUtils.speakText(data.word);
-    });
   }
 
   setCues(cues) {
@@ -297,8 +292,6 @@ class YouTubeSidebar {
           </div>
           <div class="ot-cue-actions">
             <button class="ot-action-btn ot-btn-loop ${isLooping ? "active" : ""}" data-action="loop" title="單句循環">🔁</button>
-            <button class="ot-action-btn" data-action="speak" title="朗讀原句">🔊</button>
-            <button class="ot-action-btn" data-action="copy" title="複製原句與翻譯">📋</button>
           </div>
         </div>
       `;
@@ -322,19 +315,6 @@ class YouTubeSidebar {
         } else {
           this.setLoopCue(cue);
         }
-      });
-
-      itemEl.querySelector('[data-action="speak"]')?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        BrancyUtils.speakText(cue.text);
-      });
-
-      itemEl.querySelector('[data-action="copy"]')?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(`${cue.text}\n${cue.translation || ""}`);
-        const btn = itemEl.querySelector('[data-action="copy"]');
-        btn.textContent = "✓";
-        setTimeout(() => (btn.textContent = "📋"), 1500);
       });
     });
   }

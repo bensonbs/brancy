@@ -229,27 +229,7 @@
 
     block.classList.remove("ot-shimmer-loading");
     block.classList.add("ot-trans-fade-in");
-    block.innerHTML = `
-      <div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div>
-      <div class="ot-web-trans-tools">
-        <button class="ot-trans-btn" data-action="speak" title="朗讀翻譯">🔊</button>
-        <button class="ot-trans-btn" data-action="copy" title="複製翻譯">📋</button>
-      </div>
-    `;
-
-    // Actions
-    block.querySelector('[data-action="speak"]')?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      BrancyUtils.speakText(translatedText, settings.targetLang === "zh-TW" ? "zh-TW" : "zh-CN");
-    });
-
-    block.querySelector('[data-action="copy"]')?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      navigator.clipboard.writeText(translatedText);
-      const btn = block.querySelector('[data-action="copy"]');
-      btn.textContent = "✓";
-      setTimeout(() => (btn.textContent = "📋"), 1500);
-    });
+    block.innerHTML = `<div class="ot-web-trans-content">${BrancyUtils.escapeHtml(translatedText)}</div>`;
   }
 
   function showToast(msg) {
