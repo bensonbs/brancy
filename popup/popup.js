@@ -15,9 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Switches
   const swYtSubs = document.getElementById("ot-sw-yt-subs");
-  const swYtSidebar = document.getElementById("ot-sw-yt-sidebar");
   const swSelection = document.getElementById("ot-sw-selection");
-  const swFloatingBall = document.getElementById("ot-sw-floating-ball");
 
   // Load current settings
   const resp = await chrome.runtime.sendMessage({ action: "GET_SETTINGS" });
@@ -27,9 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   engineSelect.value = settings.engine || "google_free";
   langSelect.value = settings.targetLang || "zh-TW";
   swYtSubs.checked = !!settings.youtubeSubtitleEnabled;
-  swYtSidebar.checked = !!settings.youtubeSidebarEnabled;
   swSelection.checked = !!settings.webSelectionEnabled;
-  swFloatingBall.checked = !!settings.webFloatingBallEnabled;
 
   updateOpenRouterHint();
 
@@ -65,16 +61,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateSetting("youtubeSubtitleEnabled", swYtSubs.checked);
   });
 
-  swYtSidebar.addEventListener("change", () => {
-    updateSetting("youtubeSidebarEnabled", swYtSidebar.checked);
-  });
-
   swSelection.addEventListener("change", () => {
     updateSetting("webSelectionEnabled", swSelection.checked);
-  });
-
-  swFloatingBall.addEventListener("change", () => {
-    updateSetting("webFloatingBallEnabled", swFloatingBall.checked);
   });
 
   // Open Options Page

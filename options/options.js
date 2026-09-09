@@ -45,7 +45,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Web & Shortcuts
   const optWebSelection = document.getElementById("opt-web-selection");
-  const optWebFloatingBall = document.getElementById("opt-web-floating-ball");
   const optShortcutsEnabled = document.getElementById("opt-shortcuts-enabled");
 
   // Buttons
@@ -97,7 +96,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     optSubBg.value = s.youtubeSubBg || "rgba(0, 0, 0, 0.78)";
 
     optWebSelection.checked = !!s.webSelectionEnabled;
-    optWebFloatingBall.checked = !!s.webFloatingBallEnabled;
     optShortcutsEnabled.checked = !!s.shortcutsEnabled;
   }
 
@@ -128,7 +126,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       youtubeSubColor: optSubColor.value,
       youtubeSubBg: optSubBg.value,
       webSelectionEnabled: optWebSelection.checked,
-      webFloatingBallEnabled: optWebFloatingBall.checked,
       shortcutsEnabled: optShortcutsEnabled.checked
     };
 
@@ -145,7 +142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Bind inputs to save
-  [optEngine, optTargetLang, optSubOrder, optSubBg, optWebSelection, optWebFloatingBall, optShortcutsEnabled].forEach(el => {
+  [optEngine, optTargetLang, optSubOrder, optSubBg, optWebSelection, optShortcutsEnabled].forEach(el => {
     el.addEventListener("change", () => {
       save();
       updatePreview();

@@ -55,9 +55,7 @@
       ],
       "js": [
         "content/common/utils.js",
-        "content/common/dict.js",
         "content/youtube/youtube-captions.js",
-        "content/youtube/youtube-sidebar.js",
         "content/youtube/youtube.js"
       ],
       "css": [
@@ -76,7 +74,6 @@
         "content/common/utils.js",
         "content/common/dict.js",
         "content/webpage/selection.js",
-        "content/webpage/floating-ball.js",
         "content/webpage/webpage.js"
       ],
       "css": [

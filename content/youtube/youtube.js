@@ -98,17 +98,11 @@
     videoEl.addEventListener("timeupdate", () => {
       const time = videoEl.currentTime;
       syncSubtitles(time);
-      if (window.BrancySidebar) {
-        window.BrancySidebar.updateActiveTime(time);
-      }
     });
 
     videoEl.addEventListener("seeking", () => {
       const time = videoEl.currentTime;
       syncSubtitles(time);
-      if (window.BrancySidebar) {
-        window.BrancySidebar.updateActiveTime(time);
-      }
     });
   }
 
@@ -172,16 +166,6 @@
                 originLine.textContent = currentText;
                 box.classList.add("visible");
               }
-            }
-
-            // Append to sidebar in real time
-            if (window.BrancySidebar && videoEl) {
-              window.BrancySidebar.appendLiveCue({
-                start: Math.max(0, videoEl.currentTime - 1),
-                end: videoEl.currentTime + 3,
-                text: currentText,
-                translation: trans
-              });
             }
           } catch (e) {}
         }, 80);
@@ -301,21 +285,12 @@
       <button class="ytp-button ot-ytp-btn ${isSubtitleVisible ? "active" : ""}" id="ot-ytp-sub-toggle" title="Brancy 雙語字幕 (熱鍵 E)">
         <span class="ot-ytp-badge">雙</span>
       </button>
-      <button class="ytp-button ot-ytp-btn" id="ot-ytp-sidebar-toggle" title="開啟 Brancy 腳本側邊欄 (熱鍵 R)">
-        <span class="ot-ytp-badge">側</span>
-      </button>
     `;
 
     rightControls.insertBefore(controlsWrapper, rightControls.firstChild);
 
     controlsWrapper.querySelector("#ot-ytp-sub-toggle").addEventListener("click", () => {
       toggleSubtitles();
-    });
-
-    controlsWrapper.querySelector("#ot-ytp-sidebar-toggle").addEventListener("click", () => {
-      if (window.BrancySidebar) {
-        window.BrancySidebar.toggle();
-      }
     });
   }
 
@@ -351,11 +326,6 @@
       } else if (key === "E") {
         e.preventDefault();
         toggleSubtitles();
-      } else if (key === "R") {
-        e.preventDefault();
-        if (window.BrancySidebar) {
-          window.BrancySidebar.toggle();
-        }
       }
     });
   }

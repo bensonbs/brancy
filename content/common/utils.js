@@ -9,7 +9,6 @@ const DEFAULT_SETTINGS = {
   googleApiKey: "",
   targetLang: "zh-TW", // "zh-TW" | "zh-CN" | "en" | "ja" | "ko" | "es" | "fr" | "de"
   youtubeSubtitleEnabled: true,
-  youtubeSidebarEnabled: true,
   youtubeFontSize: 20,
   youtubeOriginFontSize: 14,
   youtubeSubColor: "#ffffff",
@@ -17,7 +16,6 @@ const DEFAULT_SETTINGS = {
   youtubePrimaryOrder: "target_first", // "target_first" (Target on top) | "origin_first" (Original on top)
   webBilingualEnabled: false,
   webSelectionEnabled: true,
-  webFloatingBallEnabled: true,
   shortcutsEnabled: true
 };
 

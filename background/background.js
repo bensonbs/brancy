@@ -12,7 +12,6 @@ const DEFAULT_SETTINGS = {
   googleApiKey: "",
   targetLang: "zh-TW",
   youtubeSubtitleEnabled: true,
-  youtubeSidebarEnabled: true,
   youtubeFontSize: 20,
   youtubeOriginFontSize: 14,
   youtubeSubColor: "#ffffff",
@@ -20,7 +19,6 @@ const DEFAULT_SETTINGS = {
   youtubePrimaryOrder: "target_first",
   webBilingualEnabled: false,
   webSelectionEnabled: true,
-  webFloatingBallEnabled: true,
   shortcutsEnabled: true
 };
 
